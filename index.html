@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloche — Every shift, covered.</title>
+  <meta name="description" content="Cloche is the app where Australian hospitality venues and workers find each other directly. Every shift, covered.">
+
+  <!-- Set theme before first paint to avoid a flash of the wrong theme -->
+  <script>
+    (function () {
+      var t = localStorage.getItem('cloche-theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.dataset.theme = t;
+      document.documentElement.classList.add('js');
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@600;700&display=swap" rel="stylesheet">
+
+  <!-- Only the hero screenshot is preloaded; everything else lazy-loads -->
+  <link rel="preload" as="image" href="assets/00-landing.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- ============ NAV ============ -->
+  <header class="nav" id="nav">
+    <div class="nav-inner">
+      <a class="wordmark" href="#top" aria-label="Cloche — back to top">Cloche</a>
+
+      <nav class="nav-pill" aria-label="Site">
+        <a href="#sides">Two sides</a>
+        <a href="#features">Features</a>
+        <a href="#numbers">The numbers</a>
+      </nav>
+
+      <div class="nav-actions">
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch colour theme">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
+        </button>
+        <a class="btn btn-primary btn-sm magnetic" href="#get">Get the app</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+
+    <!-- ============ HERO ============ -->
+    <section class="hero" aria-labelledby="hero-heading">
+      <div class="mesh" aria-hidden="true">
+        <div class="mesh-blob mesh-a"></div>
+        <div class="mesh-blob mesh-b"></div>
+        <div class="mesh-blob mesh-c"></div>
+      </div>
+
+      <div class="hero-inner">
+        <div class="hero-copy">
+          <h1 id="hero-heading" class="split-words">Every shift, covered.</h1>
+          <p class="hero-sub split-words">Hospitality work, straight from the venues and workers around you.</p>
+          <p class="hero-detail" data-reveal>Cloche puts bars, cafes and restaurants in direct contact with the people who staff them. No recruiter in the middle. Post a shift, find a shift, sorted.</p>
+          <div class="hero-ctas" data-reveal>
+            <a class="btn btn-store magnetic" href="#get">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.53 4.08ZM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25Z"/></svg>
+              <span><small>Download on the</small>App Store</span>
+            </a>
+            <a class="btn btn-store magnetic" href="#get">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 3.5v17c0 .35.37.57.67.4l1.2-.68 9.05-8.22L5.87 3.78l-1.2-.68a.46.46 0 0 0-.67.4Zm12.6 6.23L7.4 4.5l7.9 7.17 1.3-1.18 2.8 1.6c.8.45.8 1.37 0 1.82l-2.8 1.6-1.3-1.18-7.9 7.17 9.2-5.23 3.32-1.9c.53-.3.53-.94 0-1.24l-3.32-1.9Z"/></svg>
+              <span><small>Get it on</small>Google Play</span>
+            </a>
+          </div>
+        </div>
+
+        <div class="hero-device" data-reveal>
+          <div class="device-glow" aria-hidden="true"></div>
+          <div class="device device-tilt">
+            <div class="device-screen">
+              <img src="assets/00-landing.png" width="1206" height="2622" fetchpriority="high"
+                   alt="Cloche welcome screen: the wordmark over a dimmed bar scene, with buttons for I'm looking for work and I'm hiring.">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ROLE MARQUEE ============ -->
+    <section class="marquee" aria-label="Roles on Cloche">
+      <!-- The group is cloned once in JS (aria-hidden) for a seamless -50% loop -->
+      <div class="marquee-track" id="marquee-track">
+        <div class="marquee-group">
+          <span>Bartender</span><span aria-hidden="true">·</span>
+          <span>Chef</span><span aria-hidden="true">·</span>
+          <span>Barista</span><span aria-hidden="true">·</span>
+          <span>Kitchen hand</span><span aria-hidden="true">·</span>
+          <span>Waiter / FOH</span><span aria-hidden="true">·</span>
+          <span>Glass collector</span><span aria-hidden="true">·</span>
+          <span>DJ</span><span aria-hidden="true">·</span>
+          <span>Manager</span><span aria-hidden="true">·</span>
+          <span>All-rounder</span><span aria-hidden="true">·</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TWO SIDES, ONE APP ============ -->
+    <section class="sides section" id="sides" aria-labelledby="sides-heading">
+      <div class="container">
+        <p class="kicker" data-reveal>Two sides, one app</p>
+        <h2 id="sides-heading" data-reveal>The same app, facing both ways.</h2>
+        <p class="section-sub" data-reveal>One account can be a worker, a venue, or both — the whole app flips to match.</p>
+
+        <div class="tabs" role="tablist" aria-label="Choose a side" data-reveal>
+          <button class="tab is-active" id="tab-work" role="tab" aria-selected="true" aria-controls="panel-work" type="button">I'm looking for work</button>
+          <button class="tab" id="tab-hire" role="tab" aria-selected="false" aria-controls="panel-hire" type="button">I'm hiring</button>
+        </div>
+
+        <div class="sides-body" data-reveal>
+          <div class="sides-copy">
+            <div class="side-panel is-active" id="panel-work" role="tabpanel" aria-labelledby="tab-work" tabindex="0">
+              <h3>Set your roles. Get the right jobs.</h3>
+              <p>Tell Cloche what you do — bartender, chef, barista, whatever — and the suburb you're in. Your feed ranks nearby jobs by the roles you picked, with a plain-English summary above every ad.</p>
+              <ul class="ticks">
+                <li>One-tap applications with your certs attached</li>
+                <li>A map of every open job around you</li>
+                <li>Post your availability and let venues come to you</li>
+              </ul>
+            </div>
+            <div class="side-panel" id="panel-hire" role="tabpanel" aria-labelledby="tab-hire" tabindex="0" hidden>
+              <h3>Post a shift. Meet the shortlist.</h3>
+              <p>Put up a casual shift or a permanent role in a minute. Applicants arrive with verified credentials, distance and experience already on the card — and your feed shows workers posting their availability nearby.</p>
+              <ul class="ticks">
+                <li>Verified RSA, RCG and Food Safety before you message</li>
+                <li>Distance and experience on every applicant card</li>
+                <li>Message workers directly, no middleman</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="sides-device">
+            <div class="device-glow" aria-hidden="true"></div>
+            <div class="device">
+              <div class="device-screen swap-screen">
+                <img class="swap-img is-active" src="assets/01-feed.png" data-dark-src="assets/01-feed-dark.png" width="1206" height="2622" loading="lazy"
+                     alt="Worker feed: a bartender job at The Tin Whistle in Newtown, with an AI summary line above the full ad and filter chips below.">
+                <img class="swap-img" src="assets/10-venue-feed.png" data-dark-src="assets/10-venue-feed-dark.png" width="1206" height="2622" loading="lazy"
+                     alt="Venue feed: workers posting their availability, each with an AI summary of their post.">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PINNED PHONE FEATURE SCROLL ============ -->
+    <section class="pinned section" id="features" aria-labelledby="pinned-heading">
+      <div class="container">
+        <p class="kicker" data-reveal>What it does</p>
+        <h2 id="pinned-heading" data-reveal>Built around four ideas.</h2>
+      </div>
+
+      <div class="pinned-layout container">
+        <!-- The phone stays stuck while the copy scrolls; the screenshot
+             crossfades as each beat enters the middle of the viewport -->
+        <div class="pinned-device">
+          <div class="device-glow" aria-hidden="true"></div>
+          <div class="device">
+            <div class="device-screen">
+              <img class="beat-img is-active" data-beat="0" src="assets/01-feed.png" data-dark-src="assets/01-feed-dark.png" width="1206" height="2622" loading="lazy"
+                   alt="Worker feed ranking a bartender job first, with an AI summary above the raw ad.">
+              <img class="beat-img" data-beat="1" src="assets/02-map.png" data-dark-src="assets/02-map-dark.png" width="1206" height="2622" loading="lazy"
+                   alt="Map of Sydney with suburb pins sized and colour-graded by open job count — 314 jobs across 48 suburbs.">
+              <img class="beat-img" data-beat="2" src="assets/05-profile-certs.png" data-dark-src="assets/05-profile-certs-dark.png" width="1206" height="2622" loading="lazy"
+                   alt="Worker profile listing RSA, RCG and Food Safety Supervisor certifications, each with a green Verified badge.">
+              <img class="beat-img" data-beat="3" src="assets/12-venue-messages.png" data-dark-src="assets/12-venue-messages-dark.png" width="1206" height="2622" loading="lazy"
+                   alt="Venue messages screen showing a hired bartender for The Copper Still in Surry Hills.">
+            </div>
+          </div>
+        </div>
+
+        <div class="pinned-copy">
+          <article class="beat" data-beat="0">
+            <h3>A feed that knows your trade</h3>
+            <p>The ranking is structural: roles you selected always outrank roles you didn't, and nothing — not freshness, not popularity — can push a wrong-role job above a right-role one.</p>
+            <p>All the personalisation happens on your phone. Your behaviour never leaves it.</p>
+          </article>
+          <article class="beat" data-beat="1">
+            <h3>See who's hiring near you</h3>
+            <p>A live map of open jobs, with suburb pins sized and coloured by how many are there. Tap a pin, see the jobs.</p>
+            <p>Right now that's 314 jobs across 48 Sydney suburbs.</p>
+          </article>
+          <article class="beat" data-beat="2">
+            <h3>Credentials, verified once</h3>
+            <p>Upload your RSA, RCG and Food Safety certificates once. Cloche verifies them and tracks expiry.</p>
+            <p>Venues see the green badge before they message you — no more emailing photos of cards.</p>
+          </article>
+          <article class="beat" data-beat="3">
+            <h3>Applicants, already filtered</h3>
+            <p>Venues get a shortlist, not a pile. Every applicant card carries verified credentials, distance and experience up front.</p>
+            <p>When you hire someone, the role and the conversation stay together in one place.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PULL-TO-REFRESH DELIGHT BEAT ============ -->
+    <section class="cloche-beat" id="delight" aria-labelledby="delight-heading">
+      <div class="cloche-sticky">
+        <div class="container cloche-inner">
+          <div class="cloche-copy">
+            <h2 id="delight-heading" data-reveal>Pull to refresh.<br>The cloche lifts.</h2>
+            <p data-reveal>The app is named after the serving dome. Pull the feed down and it lifts off the plate. That's it. That's the feature.</p>
+          </div>
+          <div class="cloche-device" data-reveal>
+            <div class="device device-small">
+              <div class="device-screen">
+                <!-- Scrubbed against scroll position in JS; the poster is the
+                     reduced-motion and video-failure fallback -->
+                <video id="cloche-video" muted playsinline preload="none"
+                       poster="assets/15-pull-refresh.png"
+                       data-dark-poster="assets/15-pull-refresh-dark.png"
+                       aria-label="The feed pulled down, revealing a green cloche lifting off a plate.">
+                  <source src="assets/pull-refresh.mp4" type="video/mp4">
+                </video>
+                <!-- Only the video is recoloured by filter (see styles.css); the
+                     filter flips the phone's black Dynamic Island to white, so
+                     this patches it back. Sits above the video, dark theme only. -->
+                <div class="island-patch" aria-hidden="true"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FEATURE GRID ============ -->
+    <section class="grid-section section" aria-labelledby="grid-heading">
+      <div class="container">
+        <p class="kicker" data-reveal>The rest of it</p>
+        <h2 id="grid-heading" data-reveal>Small app, sharp edges.</h2>
+
+        <div class="feature-grid" data-reveal-children>
+          <article class="card">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.9L19 9.7l-5.2 1.8L12 16.5l-1.8-5L5 9.7l5.2-1.8L12 3Z"/><path d="M18.5 15.5l.75 2 2 .75-2 .75-.75 2-.75-2-2-.75 2-.75.75-2Z"/></svg>
+            <h3>AI summaries</h3>
+            <p>Every listing gets a one-line plain-English summary above the raw ad. A wall of ALL-CAPS text becomes scannable.</p>
+          </article>
+          <article class="card">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M7 12h13M10 18h10"/></svg>
+            <h3>Ranked feed</h3>
+            <p>Your roles come first, structurally. The server sends candidates; your phone does the ranking, in private.</p>
+          </article>
+          <article class="card">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11Z"/><circle cx="12" cy="10" r="2.6"/></svg>
+            <h3>Suburb map</h3>
+            <p>Pins sized and coloured by open jobs, filterable by role. See demand at a glance before you move.</p>
+          </article>
+          <article class="card">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5l2.1 1.5 2.6-.3 1 2.4 2.4 1-.3 2.6 1.5 2.1-1.5 2.1.3 2.6-2.4 1-1 2.4-2.6-.3-2.1 1.5-2.1-1.5-2.6.3-1-2.4-2.4-1 .3-2.6L2.5 12 4 9.9l-.3-2.6 2.4-1 1-2.4 2.6.3L12 2.5Z"/><path d="m9 12 2 2 4-4.5"/></svg>
+            <h3>Verified certs</h3>
+            <p>RSA, RCG and Food Safety, uploaded once, verified and expiry-tracked. Venues see the badge, not a photo of a card.</p>
+          </article>
+          <article class="card">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8.5 8.5 0 0 1-8.5 8.5c-1.5 0-2.9-.36-4.1-1L3 21l1.5-5.4A8.5 8.5 0 1 1 21 12Z"/></svg>
+            <h3>Direct messaging</h3>
+            <p>Workers and venues talk to each other, not to an agency. Applications, hires and chats stay in one thread.</p>
+          </article>
+          <article class="card">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 8h10M17 8l-3-3m3 3-3 3M17 16H7m0 0 3-3m-3 3 3 3"/></svg>
+            <h3>Worker and venue in one</h3>
+            <p>The same account can hold both sides. Flip it and the feed shows jobs to workers, workers to venues.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ STATS BAND ============ -->
+    <section class="stats" id="numbers" aria-labelledby="stats-heading">
+      <div class="container">
+        <h2 id="stats-heading" class="visually-hidden">Cloche in numbers</h2>
+        <dl class="stats-row" data-reveal-children>
+          <div class="stat"><dd><span class="count" data-count="314">0</span></dd><dt>open jobs</dt></div>
+          <div class="stat"><dd><span class="count" data-count="48">0</span></dd><dt>suburbs</dt></div>
+          <div class="stat"><dd><span class="count" data-count="10">0</span></dd><dt>role categories</dt></div>
+          <div class="stat"><dd><span class="count" data-count="2">0</span></dd><dt>sides, one app</dt></div>
+        </dl>
+        <p class="stats-note" data-reveal>Sydney, at last count. More suburbs every week.</p>
+      </div>
+    </section>
+
+    <!-- ============ CTA ============ -->
+    <section class="cta section" id="get" aria-labelledby="cta-heading">
+      <div class="container">
+        <h2 id="cta-heading" data-reveal>Every shift, covered.</h2>
+        <p class="section-sub" data-reveal>Free for workers. Free for venues to browse. On the app stores soon.</p>
+        <div class="hero-ctas cta-ctas" data-reveal>
+          <a class="btn btn-store magnetic" href="#get">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.53 4.08ZM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25Z"/></svg>
+            <span><small>Download on the</small>App Store</span>
+          </a>
+          <a class="btn btn-store magnetic" href="#get">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 3.5v17c0 .35.37.57.67.4l1.2-.68 9.05-8.22L5.87 3.78l-1.2-.68a.46.46 0 0 0-.67.4Zm12.6 6.23L7.4 4.5l7.9 7.17 1.3-1.18 2.8 1.6c.8.45.8 1.37 0 1.82l-2.8 1.6-1.3-1.18-7.9 7.17 9.2-5.23 3.32-1.9c.53-.3.53-.94 0-1.24l-3.32-1.9Z"/></svg>
+            <span><small>Get it on</small>Google Play</span>
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <span class="wordmark">Cloche</span>
+      <p>© 2026 Cloche. Made for hospitality, in Australia.</p>
+      <nav aria-label="Legal">
+        <a href="#">Privacy</a>
+        <a href="#">Terms</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
