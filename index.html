@@ -6,25 +6,310 @@
   <title>Cloche — Every shift, covered.</title>
   <meta name="description" content="Cloche is the app where Australian hospitality venues and workers find each other directly. Every shift, covered.">
 
-  <!-- Set theme before first paint to avoid a flash of the wrong theme -->
+  <!-- Set theme before first paint to avoid a flash of the wrong theme.
+       .is-loading arms the preloader (scroll lock, held reveals); it is only
+       ever added from JS, so a no-JS visit never sees a locked page. -->
   <script>
     (function () {
       var t = localStorage.getItem('cloche-theme');
       if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       document.documentElement.dataset.theme = t;
-      document.documentElement.classList.add('js');
+      document.documentElement.classList.add('js', 'is-loading');
     })();
   </script>
 
+  <!-- Preloader critical CSS, inlined so the overlay owns the very first
+       paint. Both stylesheets below load async on purpose: the overlay is
+       already covering the page, so nothing is allowed to block it — and it
+       hides any momentarily unstyled content underneath. -->
+  <style>
+    html.is-loading { overflow: hidden; }
+    #loader {
+      position: fixed; inset: 0; z-index: 200;
+      display: grid; place-items: center;
+      /* Failsafe: if JS never gets to run, clear the overlay anyway.
+         JS cancels this the moment it takes over the dismissal. */
+      animation: loader-out 0.6s ease 3.1s forwards;
+    }
+    @keyframes loader-out { to { opacity: 0; visibility: hidden; } }
+    /* The backdrop is a pseudo-element so it can fade away on its own while
+       the mark keeps riding into the phone (opacity-only, no bg repaints). */
+    #loader::before {
+      content: ""; position: absolute; inset: 0;
+      background: #FFFFFF;
+      transition: opacity 0.2s ease; /* 0.3s / 1.5 */
+    }
+    :root[data-theme="dark"] #loader::before { background: #000000; }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme]) #loader::before { background: #000000; }
+    }
+    #loader.is-clearing { pointer-events: none; }
+    #loader.is-clearing::before { opacity: 0; }
+    /* Two elements, two jobs. The outer one rides into the phone and must
+       track the indicator point exactly; the inner one retracts and fades on
+       its own clock. Composing them as parent/child keeps each transform pure
+       — folding both into one meant the retract dragged the mark off the point
+       it was supposed to be pinned to. */
+    /* The mark's share of the viewport is what sets the zoom: the phone lands
+       full-bleed when the mark is ~8.96vw, because that is the indicator's
+       share of the screen. A fixed 112px is 8.75vw on a desktop but 28vw on a
+       phone, which would blow the phone up to three times the screen. Scale it
+       with the viewport, floored so it never gets too small to read.
+       Native cell is 144px — never scale much past it or it softens. */
+    .loader-mark {
+      position: relative;
+      width: clamp(44px, 9vw, 112px);
+      height: clamp(44px, 9vw, 112px);
+    }
+    .loader-mark-art {
+      display: block;
+      width: 100%; height: 100%;
+      /* 6x6 sheet at 600%: each 20% step of background-position is one cell */
+      background: url("assets/cloche-refresh-sheet.png") 0% 0% / 600% 600% no-repeat;
+    }
+  </style>
+  <noscript><style>#loader { display: none; }</style></noscript>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'; this.onload=null;">
 
-  <!-- Only the hero screenshot is preloaded; everything else lazy-loads -->
-  <link rel="preload" as="image" href="assets/00-landing.png">
-  <link rel="stylesheet" href="styles.css">
+  <!-- The loader must never wait on its own artwork -->
+  <link rel="preload" as="image" href="assets/cloche-refresh-sheet.png">
+  <link rel="stylesheet" href="styles.css" media="print" onload="this.media='all'; this.onload=null;">
+  <noscript>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+  </noscript>
 </head>
 <body>
+
+  <!-- ============ PRELOADER ============
+       The page opens the way the app does: a pull-to-refresh. The cloche mark
+       animates alone on an empty screen, then resolves as the hero phone
+       arrives showing a feed that has just refreshed. -->
+  <div id="loader" role="status" aria-busy="true" aria-label="Cloche is loading">
+    <div class="loader-mark" id="loader-mark" aria-hidden="true">
+      <span class="loader-mark-art" id="loader-mark-art"></span>
+    </div>
+  </div>
+
+  <!-- Inline (not in script.js) so the mark starts moving on the first frame,
+       before any external file has landed. -->
+  <script>
+    (function () {
+      var docEl = document.documentElement;
+      var loader = document.getElementById('loader');
+      var mark = document.getElementById('loader-mark');
+      var art = document.getElementById('loader-mark-art');
+      var reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      /* The whole sequence runs at 1.5x the app's tempo — every duration here
+         and in the choreography below is its 1x value over 1.5. PASS is the
+         app's 900ms pull-indicator pass; the rest follow the same divisor.
+         Change the divisor and the whole sequence rescales in step. */
+      var FRAMES = 36, COLS = 6, PASS = 600; // 900 / 1.5 (pull-indicator.tsx)
+      var HOLD = 667, CAP = 3000;            // never flicker past; never hold the site hostage
+                                             // (CAP is a network failsafe, not choreography,
+                                             //  so it does NOT scale with the divisor)
+      var EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
+
+      var t0 = performance.now();
+      var raf = 0;
+      var playhead = 0; // eased 0..1, kept so the resolve can scrub back from wherever we are
+
+      function easeInOutQuad(p) { return p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2; }
+      function setPlayhead(p) {
+        playhead = p;
+        var i = Math.round(p * (FRAMES - 1));
+        art.style.backgroundPosition = ((i % COLS) * 20) + '% ' + (((i / COLS) | 0) * 20) + '%';
+      }
+
+      /* Ping-pong, never restart: the two ends of the clip look nothing alike,
+         so a non-reversing loop snaps. CSS steps() can't cleanly ping-pong a
+         2-D sheet (alternate reverses the column and row animations on
+         different periods and scrambles the frame order), hence a JS playhead. */
+      function tick(now) {
+        var cycle = ((now - t0) / PASS) % 2;
+        setPlayhead(easeInOutQuad(cycle <= 1 ? cycle : 2 - cycle));
+        raf = requestAnimationFrame(tick);
+      }
+      // Reduced motion gets the resolved frame outright — the same open state
+      // everyone else lands on, just without the scrub to get there.
+      if (!reduceMotion) raf = requestAnimationFrame(tick);
+      else setPlayhead(1);
+
+      var ready = document.readyState === 'complete';
+      if (!ready) addEventListener('load', function () { ready = true; maybeDismiss(false); });
+
+      var done = false;
+      function maybeDismiss(force) {
+        if (done) return;
+        if (!force && !(ready && performance.now() - t0 >= HOLD)) return;
+        done = true;
+        cancelAnimationFrame(raf);
+        loader.style.animation = 'none'; // JS owns the dismissal from here
+        loader.setAttribute('aria-busy', 'false');
+        try { dismiss(); } catch (e) { finish(); }
+      }
+      setTimeout(function () { maybeDismiss(false); }, HOLD + 30);
+      setTimeout(function () { maybeDismiss(true); }, CAP);
+
+      /* Final state, every path: overlay out of the DOM (not just invisible),
+         scroll unlocked, reveals released. */
+      function finish() {
+        if (loader.parentNode) loader.parentNode.removeChild(loader);
+        docEl.classList.remove('is-loading', 'is-arriving');
+      }
+
+      function fadeOut() {
+        docEl.classList.remove('is-loading', 'is-arriving');
+        loader.style.transition = 'opacity 0.3s ease';
+        loader.style.opacity = '0';
+        setTimeout(finish, 320);
+      }
+
+      /* A completed refresh resolves *open*: the dome lifts off the plate into
+         the waiting hand (frame 35). Run the playhead forward to that end
+         instead of cutting mid-ping-pong — the refresh delivered something, so
+         it must not settle back onto the closed dome. Ease-out, soft landing. */
+      function resolveToRest(duration, then) {
+        var from = playhead;
+        if (from > 0.98) { setPlayhead(1); then(); return; }
+        var start = performance.now();
+        (function step(now) {
+          var t = Math.min(1, (now - start) / duration);
+          setPlayhead(from + (1 - from) * (1 - (1 - t) * (1 - t)));
+          if (t < 1) requestAnimationFrame(step); else then();
+        })(start);
+      }
+
+      function dismiss() {
+        // Reduced motion: single static frame, no zoom, out at the hold.
+        if (reduceMotion) { fadeOut(); return; }
+        // The feed takes its pulled-down pose before anything is visible.
+        docEl.classList.add('is-arriving');
+        var g = pose();
+        if (!g) { resolveToRest(300, fadeOut); return; }
+        /* Everything overlaps — sequential beats read as hesitation. The
+           backdrop fades while the mark finishes resolving, so the full-size
+           phone is simply *there*, mid-refresh.
+
+           The pull-back then starts on the tail of that reveal rather than
+           after it: by 173ms the veil is ~90% gone and the phone has plainly
+           registered, so waiting for the fade to formally finish just buys a
+           beat of dead air. */
+        loader.classList.add('is-clearing');
+        resolveToRest(173, function () {});
+        setTimeout(function () { pullBack(g); }, 173);
+      }
+
+      /* Measure the hero and put the phone, full size, exactly where it
+         would be if this refresh were really happening on it. The transform
+         is anchored on the indicator point, not the device centre — anchor
+         it anywhere else and the cloche drifts. Indicator geometry measured
+         off the recording: x 50%, y 10.51% of the screen box, 8.96% of the
+         screen width. */
+      function pose() {
+        var device = document.querySelector('.hero-device .device');
+        var screen = device && device.querySelector('.device-screen');
+        if (!screen) return null;
+        var d = device.getBoundingClientRect();
+        var s = screen.getBoundingClientRect();
+        var px = s.left - d.left + s.width * 0.50;
+        var py = s.top - d.top + s.height * 0.1051;
+        // If the page restored scrolled and the hero is nowhere near the
+        // viewport, a cross-screen zoom would be absurd — just fade.
+        if (d.top + py < -innerHeight * 0.5 || d.top + py > innerHeight * 1.5) return null;
+        var scale = mark.offsetWidth / (s.width * 0.0896);
+        /* Measure where the mark actually is rather than assuming the middle of
+           the viewport. The mark is centred inside a position: fixed overlay
+           while the phone is centred in the document's content box, and those
+           two are not the same axis the moment anything reserves a scrollbar
+           gutter — which silently put the mark half a scrollbar off the
+           indicator. Measuring keeps them welded whatever the layout does. */
+        var m = mark.getBoundingClientRect();
+        var tx = (d.left + px) - (m.left + m.width / 2);
+        var ty = (d.top + py) - (m.top + m.height / 2);
+        device.style.transformOrigin = px + 'px ' + py + 'px';
+        device.style.transform = 'translate(' + -tx + 'px, ' + -ty + 'px) scale(' + scale + ')';
+        return { device: device, tx: tx, ty: ty, k: 1 / scale };
+      }
+
+      function pullBack(g) {
+        /* Promote both layers before the transforms start. Without the hint
+           the phone's screenshot gets re-rasterised as the scale changes and
+           again when the transform is finally dropped — which reads as the
+           image tightening up right where the motion ends. */
+        g.device.style.willChange = 'transform';
+        mark.style.willChange = 'transform';
+
+        g.device.style.transition = 'transform 0.73s ' + EASE;
+        g.device.style.transform = 'translate(0px, 0px) scale(1)';
+
+        /* Identical duration and curve to the device, and nothing in the
+           transform but the ride itself. The device is anchored on the
+           indicator point, so that point simply translates by (tx, ty) — match
+           it exactly and the mark is welded to the phone for the whole trip.
+           Any extra offset folded in here shows up as drift. */
+        mark.style.transition = 'transform 0.73s ' + EASE;
+        mark.style.transform = 'translate(' + g.tx + 'px, ' + g.ty + 'px) scale(' + g.k + ')';
+
+        /* The refresh resolves once the phone is home, not during the flight —
+           so the mark rides the whole way in, fully formed.
+
+           600ms, not the 0.73s transitionend: this ease-out has a long tail
+           that moves the phone by well under a pixel over its last stretch, so
+           it reads as landed while the transition is still formally running.
+           Waiting for the event puts a visible dead pause before the refresh. */
+        setTimeout(function () { land(g); }, 600);
+
+        /* Hand the phone back to plain CSS the moment the transition really
+           ends, rather than on a later timer. Holding an inline transform (and
+           its compositing layer) for another second means the demotion — and
+           the re-raster that comes with it — happens well after the phone has
+           stopped, which reads as a snap out of nowhere at the end.
+
+           Guarded on target and property: child transitions (the feed
+           settling, the screenshot crossfade) bubble up through this node. */
+        var settled = false;
+        function atRest(e) {
+          if (settled) return;
+          if (e && (e.target !== g.device || e.propertyName !== 'transform')) return;
+          settled = true;
+          g.device.removeEventListener('transitionend', atRest);
+          g.device.style.transition = '';
+          g.device.style.transform = '';
+          g.device.style.transformOrigin = '';
+          g.device.style.willChange = '';
+          /* Next frame, so the reveal's blur and transform work never shares a
+             frame with the phone's layer being re-rasterised. */
+          requestAnimationFrame(function () { docEl.classList.remove('is-loading'); });
+        }
+        g.device.addEventListener('transitionend', atRest);
+        setTimeout(atRest, 870); // fallback if the event never arrives
+      }
+
+      /* Phone home and still. Now the refresh finishes on it: the mark
+         retracts up and out, and the feed settles into place behind it, which
+         is how a real pull-to-refresh ends. */
+      function land(g) {
+        art.style.transition = 'transform 0.23s ' + EASE + ', opacity 0.17s ease';
+        // Percentage, so the retract stays a third of the mark at any size
+        art.style.transform = 'translateY(-32%)';
+        art.style.opacity = '0';
+
+        /* The Dynamic Island is baked into the screenshot instead of being a
+           fixed OS layer like it is on the phone, so it travels up with the
+           feed and would sweep straight across the mark. Let the mark clear
+           first — 147ms, by which point it is essentially invisible. */
+        setTimeout(function () {
+          docEl.classList.remove('is-arriving');
+          setTimeout(finish, 347);
+        }, 147);
+      }
+    })();
+  </script>
 
   <!-- ============ NAV ============ -->
   <header class="nav" id="nav">
@@ -61,8 +346,8 @@
         <div class="hero-copy">
           <h1 id="hero-heading" class="split-words">Every shift, covered.</h1>
           <p class="hero-sub split-words">Hospitality work, straight from the venues and workers around you.</p>
-          <p class="hero-detail" data-reveal>Cloche puts bars, cafes and restaurants in direct contact with the people who staff them. No recruiter in the middle. Post a shift, find a shift, sorted.</p>
-          <div class="hero-ctas" data-reveal>
+          <p class="hero-detail" data-reveal style="--d: 0.1s;">Cloche puts bars, cafes and restaurants in direct contact with the people who staff them. No recruiter in the middle. Post a shift, find a shift, sorted.</p>
+          <div class="hero-ctas" data-reveal style="--d: 0.2s;">
             <a class="btn btn-store magnetic" href="#get">
               <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.53 4.08ZM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25Z"/></svg>
               <span><small>Download on the</small>App Store</span>
@@ -74,13 +359,25 @@
           </div>
         </div>
 
-        <div class="hero-device" data-reveal>
+        <!-- The phone the preloader zooms out into. Not [data-reveal]: its
+             entrance is choreographed by the loader, not the observer. -->
+        <div class="hero-device">
           <div class="device-glow" aria-hidden="true"></div>
-          <div class="device device-tilt">
-            <div class="device-screen">
-              <img src="assets/00-landing.png" width="1206" height="2622" fetchpriority="high"
-                   alt="Cloche welcome screen: the wordmark over a dimmed bar scene, with buttons for I'm looking for work and I'm hiring.">
+          <div class="device">
+            <div class="device-screen swap-screen">
+              <img class="swap-img is-active" role="tabpanel" id="hero-screen-work" aria-labelledby="tab-work"
+                   src="assets/01-feed.png" data-dark-src="assets/01-feed-dark.png" width="1206" height="2622" fetchpriority="high"
+                   alt="Worker feed: a bartender job at The Tin Whistle in Newtown, with an AI summary line above the full ad and filter chips below.">
+              <img class="swap-img" role="tabpanel" id="hero-screen-hire" aria-labelledby="tab-hire"
+                   src="assets/10-venue-feed.png" data-dark-src="assets/10-venue-feed-dark.png" width="1206" height="2622" loading="lazy"
+                   alt="Venue feed: workers posting their availability, each with an AI summary of their post.">
+              <!-- The in-phone refresh beat that plays when the side flips -->
+              <div class="screen-cloche" id="screen-cloche" aria-hidden="true"></div>
             </div>
+          </div>
+          <div class="tabs hero-tabs" role="tablist" aria-label="Choose a side" data-reveal style="--d: 0.15s;">
+            <button class="tab is-active" id="tab-work" role="tab" aria-selected="true" aria-controls="hero-screen-work" type="button">I'm looking for work</button>
+            <button class="tab" id="tab-hire" role="tab" aria-selected="false" aria-controls="hero-screen-hire" type="button">I'm hiring</button>
           </div>
         </div>
       </div>
@@ -104,51 +401,179 @@
       </div>
     </section>
 
+    <!-- ============ SCROLL GALLERY ============
+         A horizontal rail of screens: drag, swipe, arrow keys or the two
+         buttons. The rail is the scroll container itself (no transform
+         carousel), so native snapping, momentum and focus-scrolling all come
+         for free and it still works with JS off. -->
+    <section class="gallery section" id="gallery" aria-labelledby="gallery-heading">
+      <div class="container">
+        <p class="kicker" data-reveal>A look inside</p>
+        <h2 id="gallery-heading" data-reveal>Six screens, end to end.</h2>
+      </div>
+
+      <div class="gallery-viewport" id="gallery-viewport" tabindex="0" role="group"
+           aria-labelledby="gallery-heading" aria-describedby="gallery-hint" data-reveal>
+        <ul class="gallery-track">
+          <li class="gallery-card">
+            <div class="gallery-shot">
+              <div class="gallery-phone">
+                <div class="device-screen">
+                  <img src="assets/01-feed.png" data-dark-src="assets/01-feed-dark.png" width="1206" height="2622" loading="lazy"
+                       alt="Worker feed ranking a bartender job at The Tin Whistle first, with an AI summary above the raw ad.">
+                </div>
+              </div>
+            </div>
+            <p class="gallery-caption"><b>Ranked feed.</b> The roles you picked always outrank the ones you didn't, and every listing carries a plain-English summary above the ad itself.</p>
+            <a class="gallery-link" href="#features">Learn more about the feed <span aria-hidden="true">›</span></a>
+          </li>
+
+          <li class="gallery-card">
+            <div class="gallery-shot">
+              <div class="gallery-phone">
+                <div class="device-screen">
+                  <img src="assets/02-map.png" data-dark-src="assets/02-map-dark.png" width="1206" height="2622" loading="lazy"
+                       alt="Map of Sydney with suburb pins sized and colour-graded by open job count — 314 jobs across 48 suburbs.">
+                </div>
+              </div>
+            </div>
+            <p class="gallery-caption"><b>Suburb map.</b> Pins sized and coloured by how many jobs are open there. 314 of them across 48 Sydney suburbs, filterable by role.</p>
+            <a class="gallery-link" href="#numbers">See the numbers <span aria-hidden="true">›</span></a>
+          </li>
+
+          <li class="gallery-card">
+            <div class="gallery-shot">
+              <div class="gallery-phone">
+                <div class="device-screen">
+                  <img src="assets/05-profile-certs.png" data-dark-src="assets/05-profile-certs-dark.png" width="1206" height="2622" loading="lazy"
+                       alt="Worker profile listing RSA, RCG and Food Safety Supervisor certifications, each with a green Verified badge.">
+                </div>
+              </div>
+            </div>
+            <p class="gallery-caption"><b>Verified certs.</b> Upload your RSA, RCG and Food Safety once. Cloche verifies them, tracks the expiry, and venues see the green badge — not a photo of a card.</p>
+            <a class="gallery-link" href="#features">Learn more about verification <span aria-hidden="true">›</span></a>
+          </li>
+
+          <li class="gallery-card">
+            <div class="gallery-shot">
+              <div class="gallery-phone">
+                <div class="device-screen">
+                  <img src="assets/10-venue-feed.png" data-dark-src="assets/10-venue-feed-dark.png" width="1206" height="2622" loading="lazy"
+                       alt="Venue feed: workers posting their availability, each with an AI summary of their post.">
+                </div>
+              </div>
+            </div>
+            <p class="gallery-caption"><b>The other side.</b> Flip the account and the same feed shows workers posting their availability nearby, summarised the same way.</p>
+            <a class="gallery-link" href="#sides">See both sides <span aria-hidden="true">›</span></a>
+          </li>
+
+          <li class="gallery-card">
+            <div class="gallery-shot">
+              <div class="gallery-phone">
+                <div class="device-screen">
+                  <img src="assets/12-venue-messages.png" data-dark-src="assets/12-venue-messages-dark.png" width="1206" height="2622" loading="lazy"
+                       alt="Venue messages screen showing a hired bartender for The Copper Still in Surry Hills.">
+                </div>
+              </div>
+            </div>
+            <p class="gallery-caption"><b>Direct messages.</b> Workers and venues talk to each other, not to an agency. The application, the hire and the conversation stay in one thread.</p>
+            <a class="gallery-link" href="#sides">How hiring works <span aria-hidden="true">›</span></a>
+          </li>
+
+          <li class="gallery-card">
+            <div class="gallery-shot">
+              <div class="gallery-phone">
+                <div class="device-screen">
+                  <img src="assets/15-pull-refresh.png" data-dark-src="assets/15-pull-refresh-dark.png" width="1206" height="2622" loading="lazy"
+                       alt="The feed pulled down, revealing a green cloche lifting off a plate.">
+                </div>
+              </div>
+            </div>
+            <p class="gallery-caption"><b>Pull to refresh.</b> The app is named after the serving dome. Pull the feed down and it lifts off the plate — that's the whole feature.</p>
+            <a class="gallery-link" href="#delight">Watch it lift <span aria-hidden="true">›</span></a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="container gallery-foot">
+        <p class="gallery-hint" id="gallery-hint">Drag, swipe or use the arrows.</p>
+        <div class="gallery-nav">
+          <button class="gallery-btn" id="gallery-prev" type="button" aria-label="Previous screen" aria-controls="gallery-viewport">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14.5 5-7 7 7 7"/></svg>
+          </button>
+          <button class="gallery-btn" id="gallery-next" type="button" aria-label="Next screen" aria-controls="gallery-viewport">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9.5 5 7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FULL-SCREEN MAP ============
+         The app's suburb map, blown up to the whole viewport. The section is
+         tall on purpose: the extra height is the scrub track. Scrolling starts
+         on the bare map and rains the pins onto it, smallest counts first,
+         ending on the CBD's 37. Pins are DOM elements over a genuinely empty
+         basemap (captured from the app in the simulator with a zero-match
+         filter), so each one can land on real map detail — roads, water,
+         labels — and stay welded to it through the zoom. -->
+    <section class="mapscroll" id="map" aria-labelledby="map-heading">
+      <div class="map-sticky">
+        <div class="map-stage" id="map-stage" aria-hidden="true">
+          <img class="map-base" src="assets/map-base.png" data-dark-src="assets/map-base-dark.png"
+               width="1206" height="1720" loading="lazy" alt="">
+          <!-- pins injected by script.js -->
+        </div>
+        <div class="map-scrim map-scrim-top" aria-hidden="true"></div>
+        <div class="map-scrim map-scrim-bottom" aria-hidden="true"></div>
+        <!-- The wrapper's opacity is scrubbed IN by JS over the back half of
+             the pin shower, so the screen resolves into the words rather than
+             opening on them. The children keep the usual entrance reveal,
+             which is also what shows them under reduced motion. -->
+        <div class="map-titles" id="map-titles">
+          <p class="kicker" data-reveal>The live map</p>
+          <h2 id="map-heading" data-reveal>Sydney, covered.</h2>
+          <p class="map-note" data-reveal>Suburb pins, sized and coloured by open jobs.</p>
+        </div>
+        <!-- The app's own "314 jobs · 48 suburbs" pill; counts up as pins land -->
+        <div class="map-chip" id="map-chip" aria-hidden="true">
+          <span class="map-chip-dot"></span>
+          <span><b id="map-chip-jobs">314</b> jobs · <b id="map-chip-suburbs">48</b> suburbs</span>
+        </div>
+      </div>
+      <p class="visually-hidden">A map of Sydney fills the screen. As the page scrolls, suburb pins land on it one by one — 314 open jobs across 48 suburbs, each pin sized and coloured by how many jobs are open there.</p>
+    </section>
+
     <!-- ============ TWO SIDES, ONE APP ============ -->
     <section class="sides section" id="sides" aria-labelledby="sides-heading">
       <div class="container">
         <p class="kicker" data-reveal>Two sides, one app</p>
         <h2 id="sides-heading" data-reveal>The same app, facing both ways.</h2>
-        <p class="section-sub" data-reveal>One account can be a worker, a venue, or both — the whole app flips to match.</p>
+        <p class="section-sub" data-reveal>One account can be a worker, a venue, or both — the whole app flips to match. The switch on the phone up top flips the feed; here's what each side gets.</p>
 
-        <div class="tabs" role="tablist" aria-label="Choose a side" data-reveal>
-          <button class="tab is-active" id="tab-work" role="tab" aria-selected="true" aria-controls="panel-work" type="button">I'm looking for work</button>
-          <button class="tab" id="tab-hire" role="tab" aria-selected="false" aria-controls="panel-hire" type="button">I'm hiring</button>
-        </div>
-
-        <div class="sides-body" data-reveal>
-          <div class="sides-copy">
-            <div class="side-panel is-active" id="panel-work" role="tabpanel" aria-labelledby="tab-work" tabindex="0">
-              <h3>Set your roles. Get the right jobs.</h3>
-              <p>Tell Cloche what you do — bartender, chef, barista, whatever — and the suburb you're in. Your feed ranks nearby jobs by the roles you picked, with a plain-English summary above every ad.</p>
-              <ul class="ticks">
-                <li>One-tap applications with your certs attached</li>
-                <li>A map of every open job around you</li>
-                <li>Post your availability and let venues come to you</li>
-              </ul>
-            </div>
-            <div class="side-panel" id="panel-hire" role="tabpanel" aria-labelledby="tab-hire" tabindex="0" hidden>
-              <h3>Post a shift. Meet the shortlist.</h3>
-              <p>Put up a casual shift or a permanent role in a minute. Applicants arrive with verified credentials, distance and experience already on the card — and your feed shows workers posting their availability nearby.</p>
-              <ul class="ticks">
-                <li>Verified RSA, RCG and Food Safety before you message</li>
-                <li>Distance and experience on every applicant card</li>
-                <li>Message workers directly, no middleman</li>
-              </ul>
-            </div>
-          </div>
-
-          <div class="sides-device">
-            <div class="device-glow" aria-hidden="true"></div>
-            <div class="device">
-              <div class="device-screen swap-screen">
-                <img class="swap-img is-active" src="assets/01-feed.png" data-dark-src="assets/01-feed-dark.png" width="1206" height="2622" loading="lazy"
-                     alt="Worker feed: a bartender job at The Tin Whistle in Newtown, with an AI summary line above the full ad and filter chips below.">
-                <img class="swap-img" src="assets/10-venue-feed.png" data-dark-src="assets/10-venue-feed-dark.png" width="1206" height="2622" loading="lazy"
-                     alt="Venue feed: workers posting their availability, each with an AI summary of their post.">
-              </div>
-            </div>
-          </div>
+        <!-- The interactive work/hire toggle lives in the hero now — this
+             section is deliberately static copy so the page doesn't carry two
+             identical controls doing the same thing. -->
+        <div class="sides-columns" data-reveal-children>
+          <article class="side-col">
+            <p class="side-tag">For workers</p>
+            <h3>Set your roles. Get the right jobs.</h3>
+            <p>Tell Cloche what you do — bartender, chef, barista, whatever — and the suburb you're in. Your feed ranks nearby jobs by the roles you picked, with a plain-English summary above every ad.</p>
+            <ul class="ticks">
+              <li>One-tap applications with your certs attached</li>
+              <li>A map of every open job around you</li>
+              <li>Post your availability and let venues come to you</li>
+            </ul>
+          </article>
+          <article class="side-col">
+            <p class="side-tag">For venues</p>
+            <h3>Post a shift. Meet the shortlist.</h3>
+            <p>Put up a casual shift or a permanent role in a minute. Applicants arrive with verified credentials, distance and experience already on the card — and your feed shows workers posting their availability nearby.</p>
+            <ul class="ticks">
+              <li>Verified RSA, RCG and Food Safety before you message</li>
+              <li>Distance and experience on every applicant card</li>
+              <li>Message workers directly, no middleman</li>
+            </ul>
+          </article>
         </div>
       </div>
     </section>
