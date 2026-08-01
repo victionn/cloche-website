@@ -605,8 +605,9 @@
      and the image is nothing but soft gradients — a slightly under-sampled
      buffer stretched back up is indistinguishable. Cap the device ratio, then
      cap total pixels as well, so a big desktop window and a dense phone
-     screen both land inside the same fill-rate budget. `scale` is recomputed
-     on every resize; it is the only px conversion the shader path uses. */
+     screen both land inside the same fill-rate budget. The 0.6 floor lets a
+     very large window overrun the budget rather than go mushy. `scale` is
+     recomputed on every resize; it is the only px conversion this path uses. */
   var PIXEL_BUDGET = 1.15e6;
   var scale = 1;
   function measure() {
@@ -630,7 +631,7 @@
   var FRAG = [
     'precision highp float;',
     'uniform vec2 resolution;',
-    'uniform float time;',
+    'uniform vec4 flow;',       // the four advection phases, pre-wrapped in JS
     'uniform vec2 focus;',      // phone centre, device pixels, GL origin
     'uniform float span;',      // phone height, device pixels
     'uniform float ratio;',     // phone width / phone height
@@ -645,9 +646,10 @@
     // The noise is tileable on demand: hashing the wrapped lattice cell makes
     // the field exactly periodic, which buys two things. Angularly it closes
     // the circle with no seam and no sample-averaging (see below). Radially it
-    // lets the outward flow offset wrap with mod() instead of counting up
-    // forever, so the hash never sees the large coordinates where sin() loses
-    // its precision and the texture goes blotchy after a few minutes.
+    // lets each advection phase be wrapped back to the start of a period once
+    // per lap (see `flow` in JS) rather than counting up forever, so the hash
+    // never sees the large coordinates where sin() loses its precision and the
+    // texture degenerates into blotches on a tab that has been open all day.
     'float phash(vec2 p, vec2 per) {',
     '  p = mod(p, per);',
     '  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);',
@@ -673,7 +675,8 @@
     '  return v;',
     '}',
     '',
-    'const float RPER = 16.0;',  // radial period, in noise units
+    'const float RPER = 16.0;',  // radial period of the ray fields, in noise units
+    'const float CPER = 32.0;',  // and of the cloud, which drifts in both axes
     '',
     'void main() {',
     '  vec2 p = (gl_FragCoord.xy - focus) / span;',
@@ -699,12 +702,12 @@
     '  // Cell aspect is what decides ray-versus-blob: an angular cell covers',
     '  // 2*PI/N radians, a radial one a factor exp(1/k) in radius, and the two',
     '  // want to sit around 6:1. N up / k down makes them finer and longer.',
-    '  float fA = pfbm(vec2(ang * 30.0, lr * 1.15 - mod(time * 0.290, RPER)), vec2(30.0, RPER));',
-    '  float fB = pfbm(vec2(ang * 19.0, lr * 0.95 - mod(time * 0.210, RPER) + 5.0), vec2(19.0, RPER));',
+    '  float fA = pfbm(vec2(ang * 30.0, lr * 1.15 - flow.x), vec2(30.0, RPER));',
+    '  float fB = pfbm(vec2(ang * 19.0, lr * 0.95 - flow.y + 5.0), vec2(19.0, RPER));',
     '  float streak = pow(smoothstep(0.47, 0.80, max(fA, fB * 0.96)), 1.35);',
     '',
     '  // a soft slow cloud underneath keeps the rays from feeling clinical',
-    '  float cl = smoothstep(0.34, 0.80, pnoise(p * 1.6 + vec2(mod(time * 0.05, 32.0), mod(time * 0.037, 32.0)), vec2(32.0)));',
+    '  float cl = smoothstep(0.34, 0.80, pnoise(p * 1.6 + flow.zw, vec2(CPER)));',
     '',
     '  // Because the field only translates outward, a ray\'s age IS its radius:',
     '  // one envelope in r therefore gives every ray the same life story. It',
@@ -783,12 +786,27 @@
   }
 
   var gl = null;
-  var uResolution, uTime, uFocus, uSpan, uRatio, uTintIn, uTintOut, uStrength, uReach, uBase, uVeil, uFill;
-  // A pure translation of a periodic field: every frame is as developed as
-  // every other, so the first one already shows full-grown rays and there is
-  // nothing to wait for. Start at a random phase so each visit plays a
-  // different stretch; the shader wraps it, so it can run all day.
-  var time = Math.random() * 600;
+  var uResolution, uFlow, uFocus, uSpan, uRatio, uTintIn, uTintOut, uStrength, uReach, uBase, uVeil, uFill;
+
+  /* The four things that move: the two ray fields along their log-radius axis,
+     and the cloud across x and y. Each is a phase that advances at its own
+     rate and wraps at its field's period — the noise is exactly periodic there
+     (see the shader), so the wrap is invisible, and no coordinate ever grows.
+     Each starts somewhere random, so two visits never open on the same sky.
+
+     A pure translation of a periodic field is also why there is no warm-up:
+     every frame is as developed as every other, so the very first one already
+     shows full-grown rays. There is nothing to fast-forward through. */
+  var FLOW_RATE = [0.290, 0.210, 0.050, 0.037];
+  var FLOW_WRAP = [16, 16, 32, 32];          // must match RPER / CPER
+  var flow = FLOW_WRAP.map(function (w) { return Math.random() * w; });
+
+  function advance(dt) {
+    for (var i = 0; i < 4; i++) {
+      flow[i] = (flow[i] + FLOW_RATE[i] * dt) % FLOW_WRAP[i];
+    }
+  }
+
   var rafId = null;
   var inView = true;
   var last = performance.now();
@@ -842,7 +860,7 @@
     gl.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, 0, 0);
 
     uResolution = gl.getUniformLocation(program, 'resolution');
-    uTime = gl.getUniformLocation(program, 'time');
+    uFlow = gl.getUniformLocation(program, 'flow');
     uFocus = gl.getUniformLocation(program, 'focus');
     uSpan = gl.getUniformLocation(program, 'span');
     uRatio = gl.getUniformLocation(program, 'ratio');
@@ -874,7 +892,7 @@
   function draw() {
     if (!gl || gl.isContextLost()) return;
     var f = focusSpan();
-    gl.uniform1f(uTime, time);
+    gl.uniform4fv(uFlow, flow);
     gl.uniform2fv(uFocus, [f.x, f.y]);
     gl.uniform1f(uSpan, f.s);
     gl.uniform1f(uRatio, f.k);
@@ -896,7 +914,7 @@
      as the animation slowing to a halt rather than settling in. Clamp the step
      so a stalled tab or a dropped frame can't jump the flow forward. */
   function frame(now) {
-    time += Math.min(0.05, (now - last) / 1000);
+    advance(Math.min(0.05, (now - last) / 1000));
     last = now;
     draw();
     rafId = requestAnimationFrame(frame);
