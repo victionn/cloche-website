@@ -799,17 +799,32 @@
      shows full-grown rays. There is nothing to fast-forward through. */
   var FLOW_RATE = [0.290, 0.210, 0.050, 0.037];
   var FLOW_WRAP = [16, 16, 32, 32];          // must match RPER / CPER
-  var flow = FLOW_WRAP.map(function (w) { return Math.random() * w; });
+  var flowFrom = FLOW_WRAP.map(function (w) { return Math.random() * w; });
+  var flow = flowFrom.slice();
+  var flowT0 = performance.now();
 
-  function advance(dt) {
+  /* Each phase is a pure function of wall-clock time rather than a running sum
+     of frame deltas, and that is what keeps the rays moving through a scroll.
+     A touch or momentum scroll hands the page to the compositor and starves
+     rAF — on a phone for a few hundred milliseconds at a time. Summing deltas
+     had to clamp the step so a stalled tab could not jump the flow forward,
+     and the clamp then ate the difference: 400ms of scrolling bought 50ms of
+     travel, so the rays did not stutter, they lost ground, and the eye reads
+     that as the light halting the moment you touch the screen. Computed from
+     the clock, a starved frame costs a frame and nothing else — whenever the
+     next one lands the rays are exactly where they always would have been, so
+     there is no stall to see and no catch-up burst either. The modulo still
+     holds every coordinate inside one period, so nothing grows however long
+     the tab stays open. */
+  function advance(now) {
+    var t = (now - flowT0) / 1000;
     for (var i = 0; i < 4; i++) {
-      flow[i] = (flow[i] + FLOW_RATE[i] * dt) % FLOW_WRAP[i];
+      flow[i] = (flowFrom[i] + FLOW_RATE[i] * t) % FLOW_WRAP[i];
     }
   }
 
   var rafId = null;
   var inView = true;
-  var last = performance.now();
 
   function fail() {
     canvas.style.display = 'none'; // CSS gradient fallback takes over
@@ -891,6 +906,7 @@
 
   function draw() {
     if (!gl || gl.isContextLost()) return;
+    advance(performance.now());
     var f = focusSpan();
     gl.uniform4fv(uFlow, flow);
     gl.uniform2fv(uFocus, [f.x, f.y]);
@@ -911,19 +927,17 @@
   /* One rate, always. The rays are already developed on frame one, so there
      is nothing to fast-forward through — and an opening burst that eases back
      down is the one thing you can actually see in a field like this: it reads
-     as the animation slowing to a halt rather than settling in. Clamp the step
-     so a stalled tab or a dropped frame can't jump the flow forward. */
-  function frame(now) {
-    advance(Math.min(0.05, (now - last) / 1000));
-    last = now;
+     as the animation slowing to a halt rather than settling in. draw() reads
+     the clock itself, so every path that paints — a resize, a theme swap, a
+     restored context — lands on the right phase without threading time
+     through, and time that passes while the hero is scrolled away or the tab
+     is hidden simply passes. Nothing is watching it then. */
+  function frame() {
     draw();
     rafId = requestAnimationFrame(frame);
   }
   function play() {
-    if (rafId === null && !reduceMotion) {
-      last = performance.now();
-      rafId = requestAnimationFrame(frame);
-    }
+    if (rafId === null && !reduceMotion) rafId = requestAnimationFrame(frame);
   }
   function pause() {
     if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
