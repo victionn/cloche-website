@@ -391,22 +391,24 @@ html.is-arriving .swap-screen .swap-img {
 }
 .screen-cloche.is-on { opacity: 1; }
 
-/* Animated gradient mesh — three soft green blobs drifting very slowly */
-.mesh { position: absolute; inset: 0; pointer-events: none; }
-.mesh-blob {
+/* Ambient light wash — script.js paints soft green glows and drifting
+   specks onto this canvas. Its CSS background is the fallback for no-JS
+   or a failed canvas (JS clears it once it owns the pixels), so the hero
+   is never flat white/black either way. */
+.hero-ambient {
   position: absolute;
-  width: 55vw; height: 55vw;
-  max-width: 720px; max-height: 720px;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, var(--glow), transparent 70%);
-  opacity: 0.7;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background:
+    radial-gradient(56vw 56vw at 14% 22%, var(--glow), transparent 70%),
+    radial-gradient(62vw 62vw at 86% 78%, var(--accent-soft), transparent 70%);
 }
-.mesh-a { top: -18%; left: -12%; animation: drift-a 26s ease-in-out infinite alternate; }
-.mesh-b { bottom: -22%; right: -10%; animation: drift-b 32s ease-in-out infinite alternate; }
-.mesh-c { top: 30%; left: 45%; opacity: 0.4; animation: drift-a 40s ease-in-out infinite alternate-reverse; }
-
-@keyframes drift-a { from { transform: translate(0, 0); } to { transform: translate(9%, 6%); } }
-@keyframes drift-b { from { transform: translate(0, 0); } to { transform: translate(-8%, -7%); } }
+/* Held back while the preloader owns the screen, then eased in so the
+   handoff doesn't pop a fully-lit background behind the arriving phone. */
+html.is-loading .hero-ambient { opacity: 0; }
+.hero-ambient { transition: opacity 0.6s ease; }
 
 /* Split-word rise: each word sits in an overflow mask and rises into view */
 .split-words .w { display: inline-block; overflow: hidden; vertical-align: bottom; }
@@ -675,6 +677,27 @@ html.js .gallery-nav { display: flex; }
   z-index: 5;
   pointer-events: none;
   padding-inline: 24px;
+}
+
+/* The words arrive last, by which point the pins are all down and the copy
+   would otherwise read straight through a cluster of them. A soft page-colour
+   halo, sized to the text block rather than to the whole top of the map, keeps
+   it legible without dimming the cartography everywhere else. It rides the
+   wrapper's scrubbed opacity, so it is completely absent until the titles
+   start arriving. z-index sits it behind the text but still above the map:
+   the wrapper's own z-index makes a stacking context this can't escape. */
+.map-titles::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  top: 54%;
+  transform: translate(-50%, -50%);
+  width: min(700px, 122%);
+  height: 148%;
+  background: radial-gradient(closest-side, var(--paper) 45%, transparent 100%);
+  opacity: 0.88;
+  pointer-events: none;
 }
 .map-note { color: var(--muted); margin-top: 12px; font-size: 0.98rem; }
 
@@ -1017,7 +1040,7 @@ html.js .gallery-nav { display: flex; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .mesh-blob, .marquee-track { animation: none; }
+  .marquee-track { animation: none; }
   .split-words .wi { transform: none; animation: none; }
   .swap-img, .beat-img { transition: none; }
   .btn, .gallery-link span { transition: none; }

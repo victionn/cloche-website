@@ -434,11 +434,12 @@
         // Slight settle-out of an opening zoom gives the map itself a drift
         mapFrame(1.05 - 0.05 * easeOutCubic(p));
 
-        /* The map arrives bare and unlabelled; the titles rise in over the
-           back half of the shower, so the screen resolves INTO the words
-           rather than out of them. Fully in with a stretch of scrub still to
-           run, so they hold rather than flash past. */
-        var titleIn = Math.max(0, Math.min(1, (p - 0.58) / 0.18));
+        /* The map arrives bare for a beat, then the titles rise in as the
+           first pins start landing — early enough that the section reads as
+           labelled almost immediately, and they hold for the rest of the
+           scrub. The track is only ~55svh, so a window this short is still
+           several hundred pixels of scrolling. */
+        var titleIn = Math.max(0, Math.min(1, (p - 0.04) / 0.16));
         mapTitles.style.opacity = titleIn.toFixed(3);
         mapTitles.style.transform = 'translateY(' + ((1 - titleIn) * 18).toFixed(1) + 'px)';
 
@@ -580,4 +581,374 @@
       });
     });
   }
+})();
+
+/* ---------- Hero ambient background ----------
+   A WebGL radiance centred on the phone: layered fbm noise drifts slowly
+   outward from the device, so the light reads as silk flowing off it —
+   no edges, no geometry, just glow dissolving into the page. Rendered
+   premultiplied over a transparent canvas, so the same shader works on
+   both themes (mint wash on white, luminous green on black). Pauses when
+   the hero is off-screen or the tab is hidden; renders a single static
+   frame under reduced motion; survives context loss (mobile Safari
+   evicts WebGL contexts under first-load memory pressure). If WebGL is
+   unavailable the canvas's CSS gradient fallback simply stays. */
+(function () {
+  'use strict';
+
+  var canvas = document.getElementById('hero-ambient');
+  if (!canvas) return;
+
+  var reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* Per-fragment cost is what decides whether this holds 60fps on a phone,
+     and the image is nothing but soft gradients — a slightly under-sampled
+     buffer stretched back up is indistinguishable. Cap the device ratio, then
+     cap total pixels as well, so a big desktop window and a dense phone
+     screen both land inside the same fill-rate budget. `scale` is recomputed
+     on every resize; it is the only px conversion the shader path uses. */
+  var PIXEL_BUDGET = 1.15e6;
+  var scale = 1;
+  function measure() {
+    var cw = Math.max(canvas.clientWidth, 1), ch = Math.max(canvas.clientHeight, 1);
+    var s = Math.min(devicePixelRatio || 1, 1.75);
+    var px = cw * ch * s * s;
+    if (px > PIXEL_BUDGET) s *= Math.sqrt(PIXEL_BUDGET / px);
+    scale = Math.max(s, 0.6);
+  }
+  measure();
+
+  var VERT = [
+    'attribute vec3 position;',
+    'void main() { gl_Position = vec4(position, 1.0); }',
+  ].join('\n');
+
+  /* Everything is in phone-heights: p is the fragment's offset from the
+     phone centre, 1.0 = one phone-height away. Two ray fields advect
+     radially outward at different rates; each ray is born at the phone's
+     silhouette and burns out as it travels. */
+  var FRAG = [
+    'precision highp float;',
+    'uniform vec2 resolution;',
+    'uniform float time;',
+    'uniform vec2 focus;',      // phone centre, device pixels, GL origin
+    'uniform float span;',      // phone height, device pixels
+    'uniform float ratio;',     // phone width / phone height
+    'uniform vec3 tintIn;',
+    'uniform vec3 tintOut;',
+    'uniform float strength;',
+    'uniform float reach;',     // gaussian falloff coefficient
+    'uniform float base;',      // flat glow under the veils
+    'uniform float veil;',      // how hard the noise texture reads
+    'uniform float fill;',      // how much of the flat glow survives (see JS)
+    '',
+    // The noise is tileable on demand: hashing the wrapped lattice cell makes
+    // the field exactly periodic, which buys two things. Angularly it closes
+    // the circle with no seam and no sample-averaging (see below). Radially it
+    // lets the outward flow offset wrap with mod() instead of counting up
+    // forever, so the hash never sees the large coordinates where sin() loses
+    // its precision and the texture goes blotchy after a few minutes.
+    'float phash(vec2 p, vec2 per) {',
+    '  p = mod(p, per);',
+    '  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);',
+    '}',
+    'float pnoise(vec2 p, vec2 per) {',
+    '  vec2 i = floor(p), f = fract(p);',
+    '  vec2 u = f * f * (3.0 - 2.0 * f);',
+    '  return mix(mix(phash(i, per),                  phash(i + vec2(1.0, 0.0), per), u.x),',
+    '             mix(phash(i + vec2(0.0, 1.0), per), phash(i + vec2(1.0, 1.0), per), u.x), u.y);',
+    '}',
+    // Octaves double the frequency, so the period doubles with them and every
+    // octave stays in register. (Constant offsets are free — a shift by a whole
+    // period still lands on the same wrapped cell.)
+    'float pfbm(vec2 p, vec2 per) {',
+    '  float v = 0.0;',
+    '  float a = 0.5;',
+    '  for (int i = 0; i < 3; i++) {',
+    '    v += a * pnoise(p, per);',
+    '    p = p * 2.0 + vec2(11.7, 5.3);',
+    '    per *= 2.0;',
+    '    a *= 0.5;',
+    '  }',
+    '  return v;',
+    '}',
+    '',
+    'const float RPER = 16.0;',  // radial period, in noise units
+    '',
+    'void main() {',
+    '  vec2 p = (gl_FragCoord.xy - focus) / span;',
+    '  float r = length(p);',
+    '  float ang = atan(p.y, p.x) * 0.1591549 + 0.5;',  // 0..1 around the phone
+    '',
+    '  // Rays of light streaming out of the phone, sampled in LOG-polar space.',
+    '  // Plain polar makes rays that dissolve into blobs on their way out: the',
+    '  // arc a noise cell covers grows with the radius while its radial length',
+    '  // does not, so a wedge near the phone is a lump by the time it is two',
+    '  // phone-heights away. Against log(r) both dimensions scale together, so',
+    '  // a ray keeps its shape for its whole life and simply widens the way',
+    '  // light actually does. Translating that axis is a multiply in world',
+    '  // space, which is also why the rays visibly pick up speed as they go.',
+    '  //',
+    '  // Two fields at different angular frequencies, combined with max(): where',
+    '  // one is between rays the other is usually mid-ray, so no sector of the',
+    '  // circle can go bald while the pattern still reads as random. (The old',
+    '  // single field blended two samples across the seam, which averaged the',
+    '  // contrast away at exactly one angle — the phone\'s right-hand side —',
+    '  // and left it permanently dim. Periodic noise has no seam to hide.)',
+    '  float lr = log(max(r, 0.18));',
+    '  // Cell aspect is what decides ray-versus-blob: an angular cell covers',
+    '  // 2*PI/N radians, a radial one a factor exp(1/k) in radius, and the two',
+    '  // want to sit around 6:1. N up / k down makes them finer and longer.',
+    '  float fA = pfbm(vec2(ang * 30.0, lr * 1.15 - mod(time * 0.290, RPER)), vec2(30.0, RPER));',
+    '  float fB = pfbm(vec2(ang * 19.0, lr * 0.95 - mod(time * 0.210, RPER) + 5.0), vec2(19.0, RPER));',
+    '  float streak = pow(smoothstep(0.47, 0.80, max(fA, fB * 0.96)), 1.35);',
+    '',
+    '  // a soft slow cloud underneath keeps the rays from feeling clinical',
+    '  float cl = smoothstep(0.34, 0.80, pnoise(p * 1.6 + vec2(mod(time * 0.05, 32.0), mod(time * 0.037, 32.0)), vec2(32.0)));',
+    '',
+    '  // Because the field only translates outward, a ray\'s age IS its radius:',
+    '  // one envelope in r therefore gives every ray the same life story. It',
+    '  // clears the phone\'s silhouette (an ellipse on the real device aspect,',
+    '  // so rays leave the sides and the ends alike), then dissipates well',
+    '  // before the page edge instead of streaking off it.',
+    '  float halo = exp(-r * r * reach);',
+    '  // The ramp is deliberately short. Measured off the silhouette it looks',
+    '  // generous, but the ellipse is narrow, so a wide ramp spends its whole',
+    '  // length within a few dozen px of the phone\'s left and right edges —',
+    '  // on a handset that is the entire margin, and the sides read as bald',
+    '  // while the top and bottom blaze. Full strength by 1.3x clears it.',
+    '  float born = smoothstep(0.96, 1.30, length(vec2(p.x / max(ratio * 0.5, 0.08), p.y * 2.0)));',
+    '  float life = born * exp(-r * r * reach * 2.3);',
+    '',
+    '  // soft-knee instead of a hard clamp: dense noise phases compress',
+    '  // toward the ceiling rather than saturating, so overall intensity',
+    '  // stays level while the texture inside keeps moving',
+    '  float x = (fill * (base + veil * 0.11 * cl) * halo + veil * streak * life) * strength;',
+    '  float a = 1.0 - exp(-x * 1.35);',
+    '  vec3 col = mix(tintIn, tintOut, clamp(r * 0.7, 0.0, 1.0));',
+    '  gl_FragColor = vec4(col * a, a);', // premultiplied
+    '}',
+  ].join('\n');
+
+  /* Same green, two voices: deeper tones carry on white, brighter ones
+     glow on black. Values are 0-1 RGB for the shader. */
+  function palette(theme) {
+    var dark = theme === 'dark';
+    return dark ? {
+      tintIn: [0.4, 0.92, 0.64],    // luminous mint
+      tintOut: [0.12, 0.56, 0.31],  // deep brand green
+      strength: 1.0,
+      reach: 0.6, base: 0.13, veil: 1.15,
+    } : {
+      /* On white the light must be darker than the page or it vanishes:
+         deep brand greens, and almost no flat base so what reads is the ray
+         texture rather than a uniform tint. The rays carry roughly twice the
+         amplitude they do on black — a mid green at 40% over white is a much
+         quieter mark than the same green at 40% over near-black. */
+      tintIn: [0.07, 0.45, 0.24],   // deep brand green, darker than the page
+      tintOut: [0.24, 0.63, 0.4],   // mid green, never pale mint
+      strength: 1.15,
+      reach: 0.62, base: 0.085, veil: 1.15,
+    };
+  }
+  var pal = palette(document.documentElement.dataset.theme);
+  new MutationObserver(function () {
+    pal = palette(document.documentElement.dataset.theme);
+    if (reduceMotion || rafId === null) draw(); // animated frames pick it up anyway
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  /* The light is anchored to the phone. Measure it every frame — two
+     getBoundingClientRect calls are nothing, and it means fonts, layout
+     shifts and breakpoint changes can never leave the glow misaligned. */
+  var device = document.querySelector('.hero-device .device');
+  function focusSpan() {
+    var cw = canvas.clientWidth, ch = canvas.clientHeight;
+    if (!device) return { x: cw * 0.72 * scale, y: ch * 0.5 * scale, s: ch * 0.55 * scale, k: 0.46, f: 1 };
+    var dr = device.getBoundingClientRect();
+    var cr = canvas.getBoundingClientRect();
+    var h = Math.max(dr.height, 1);
+    return {
+      x: (dr.left + dr.width / 2 - cr.left) * scale,
+      // gl_FragCoord's origin is the bottom-left corner
+      y: (cr.height - (dr.top + dr.height / 2 - cr.top)) * scale,
+      s: h * scale,
+      k: dr.width / h,
+      // On a phone the device is most of the viewport's width, so the only
+      // light with room to be seen is the near field — and there the flat
+      // glow simply floods it, turning the rays into one soft wash. Stand the
+      // fill down as the margin around the phone closes up; the rays are
+      // untouched, so what little room there is goes to them.
+      f: Math.min(1, Math.max(0.55, cr.width / 2 / h)),
+    };
+  }
+
+  var gl = null;
+  var uResolution, uTime, uFocus, uSpan, uRatio, uTintIn, uTintOut, uStrength, uReach, uBase, uVeil, uFill;
+  // A pure translation of a periodic field: every frame is as developed as
+  // every other, so the first one already shows full-grown rays and there is
+  // nothing to wait for. Start at a random phase so each visit plays a
+  // different stretch; the shader wraps it, so it can run all day.
+  var time = Math.random() * 600;
+  var rafId = null;
+  var inView = true;
+  var last = performance.now();
+
+  function fail() {
+    canvas.style.display = 'none'; // CSS gradient fallback takes over
+  }
+
+  /* Create the context and (re)build all GL state. Runs once at boot and
+     again after webglcontextrestored, so nothing may leak between runs. */
+  function initGL() {
+    gl = canvas.getContext('webgl', { antialias: false, alpha: true, premultipliedAlpha: true })
+      || canvas.getContext('experimental-webgl', { alpha: true });
+    if (!gl || gl.isContextLost()) return false;
+
+    function compile(type, src) {
+      var s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(s));
+        return null;
+      }
+      return s;
+    }
+
+    var vs = compile(gl.VERTEX_SHADER, VERT);
+    var fs = compile(gl.FRAGMENT_SHADER, FRAG);
+    if (!vs || !fs) return false;
+
+    var program = gl.createProgram();
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      console.error(gl.getProgramInfoLog(program));
+      return false;
+    }
+    gl.useProgram(program);
+
+    // Fullscreen quad (two triangles)
+    var positions = new Float32Array([
+      -1, -1, 0, 1, -1, 0, -1, 1, 0,
+      1, -1, 0, -1, 1, 0, 1, 1, 0,
+    ]);
+    var buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+    var posLoc = gl.getAttribLocation(program, 'position');
+    gl.enableVertexAttribArray(posLoc);
+    gl.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, 0, 0);
+
+    uResolution = gl.getUniformLocation(program, 'resolution');
+    uTime = gl.getUniformLocation(program, 'time');
+    uFocus = gl.getUniformLocation(program, 'focus');
+    uSpan = gl.getUniformLocation(program, 'span');
+    uRatio = gl.getUniformLocation(program, 'ratio');
+    uTintIn = gl.getUniformLocation(program, 'tintIn');
+    uTintOut = gl.getUniformLocation(program, 'tintOut');
+    uStrength = gl.getUniformLocation(program, 'strength');
+    uReach = gl.getUniformLocation(program, 'reach');
+    uBase = gl.getUniformLocation(program, 'base');
+    uVeil = gl.getUniformLocation(program, 'veil');
+    uFill = gl.getUniformLocation(program, 'fill');
+
+    resize(true);
+    return true;
+  }
+
+  function resize(force) {
+    if (!gl) return;
+    measure();
+    var w = Math.max(1, Math.floor(canvas.clientWidth * scale));
+    var h = Math.max(1, Math.floor(canvas.clientHeight * scale));
+    if (force || canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+      gl.viewport(0, 0, w, h);
+      gl.uniform2fv(uResolution, [w, h]);
+    }
+  }
+
+  function draw() {
+    if (!gl || gl.isContextLost()) return;
+    var f = focusSpan();
+    gl.uniform1f(uTime, time);
+    gl.uniform2fv(uFocus, [f.x, f.y]);
+    gl.uniform1f(uSpan, f.s);
+    gl.uniform1f(uRatio, f.k);
+    gl.uniform3fv(uTintIn, pal.tintIn);
+    gl.uniform3fv(uTintOut, pal.tintOut);
+    gl.uniform1f(uStrength, pal.strength);
+    gl.uniform1f(uReach, pal.reach);
+    gl.uniform1f(uBase, pal.base);
+    gl.uniform1f(uVeil, pal.veil);
+    gl.uniform1f(uFill, f.f);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+  }
+
+  /* One rate, always. The rays are already developed on frame one, so there
+     is nothing to fast-forward through — and an opening burst that eases back
+     down is the one thing you can actually see in a field like this: it reads
+     as the animation slowing to a halt rather than settling in. Clamp the step
+     so a stalled tab or a dropped frame can't jump the flow forward. */
+  function frame(now) {
+    time += Math.min(0.05, (now - last) / 1000);
+    last = now;
+    draw();
+    rafId = requestAnimationFrame(frame);
+  }
+  function play() {
+    if (rafId === null && !reduceMotion) {
+      last = performance.now();
+      rafId = requestAnimationFrame(frame);
+    }
+  }
+  function pause() {
+    if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+  }
+
+  if (!initGL()) { fail(); return; }
+  canvas.style.background = 'none'; // shader owns the pixels; drop the CSS wash
+  draw(); // always paint at least one frame
+
+  /* Mobile Safari (and low-memory devices generally) may evict the context
+     during a heavy first load. Recover instead of staying blank forever. */
+  canvas.addEventListener('webglcontextlost', function (e) {
+    e.preventDefault(); // opt in to restoration
+    pause();
+  });
+  canvas.addEventListener('webglcontextrestored', function () {
+    if (initGL()) {
+      draw();
+      if (!reduceMotion && inView && !document.hidden) play();
+    } else {
+      fail();
+    }
+  });
+
+  // Track the element itself, not just the window: fonts and the loader
+  // handoff shift the hero's height after boot, which would leave a stale buffer.
+  if ('ResizeObserver' in window) {
+    new ResizeObserver(function () { resize(); draw(); }).observe(canvas);
+  }
+  addEventListener('resize', function () { resize(); draw(); });
+
+  if (reduceMotion) return; // static veils, no motion
+
+  // Save GPU/battery when the hero is scrolled away or the tab is hidden
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(function (entries) {
+      inView = entries[0].isIntersecting;
+      if (inView && !document.hidden) play(); else pause();
+    }, { threshold: 0 }).observe(canvas);
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) pause(); else if (inView) play();
+  });
+
+  play();
 })();
