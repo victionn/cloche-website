@@ -24,13 +24,27 @@
      recoloured with the app's own dark tokens); swap sources with the theme. */
 
   function syncMedia(theme) {
+    /* Eager images use <picture> instead of a src swap, so the preload scanner
+       resolves the theme itself and fetches one file rather than two. That
+       leaves the explicit toggle to override the media query by hand: forcing
+       the source on or off makes the browser re-run its selection. Do this
+       before the src swaps below — these elements have no [data-dark-src]. */
+    document.querySelectorAll('source[data-dark-source]').forEach(function (src) {
+      var want = theme === 'dark' ? 'all' : 'not all';
+      if (src.media !== want) src.media = want;
+    });
     document.querySelectorAll('img[data-dark-src]').forEach(function (img) {
       if (!img.dataset.lightSrc) img.dataset.lightSrc = img.getAttribute('src');
       var want = theme === 'dark' ? img.dataset.darkSrc : img.dataset.lightSrc;
       if (img.getAttribute('src') !== want) img.setAttribute('src', want);
     });
-    // Video posters get the same treatment. The clip itself has no dark
-    // recording and is recoloured in CSS instead.
+    /* Video posters get the same treatment. The clip itself has no dark
+       recording and is recoloured in CSS instead.
+       The light poster is authored as data-light-poster rather than a real
+       poster attribute — the attribute is fetched on layout, well before this
+       runs, so leaving it in the markup made every dark visitor pull the light
+       still too. The fallback below still captures an inline one if any video
+       ever keeps its attribute. */
     document.querySelectorAll('video[data-dark-poster]').forEach(function (vid) {
       if (!vid.dataset.lightPoster) vid.dataset.lightPoster = vid.getAttribute('poster');
       var want = theme === 'dark' ? vid.dataset.darkPoster : vid.dataset.lightPoster;
@@ -61,22 +75,26 @@
      that starts at translateY(110%) and rises with a 70ms stagger.
      Skipped entirely under reduced motion — the text just renders. */
 
+  function splitWords(el, text, baseDelay) {
+    var words = String(text).trim().split(/\s+/);
+    el.textContent = '';
+    words.forEach(function (word, i) {
+      var mask = document.createElement('span');
+      mask.className = 'w';
+      var inner = document.createElement('span');
+      inner.className = 'wi';
+      inner.textContent = word;
+      inner.style.setProperty('--d', (baseDelay + i * 0.07) + 's');
+      mask.appendChild(inner);
+      el.appendChild(mask);
+      el.appendChild(document.createTextNode(' '));
+    });
+  }
+
   if (!reduceMotion) {
     document.querySelectorAll('.split-words').forEach(function (el, blockIndex) {
-      var words = el.textContent.trim().split(/\s+/);
-      el.textContent = '';
-      words.forEach(function (word, i) {
-        var mask = document.createElement('span');
-        mask.className = 'w';
-        var inner = document.createElement('span');
-        inner.className = 'wi';
-        inner.textContent = word;
-        // The subhead block starts after the headline finishes its run
-        inner.style.setProperty('--d', (blockIndex * 0.3 + i * 0.07) + 's');
-        mask.appendChild(inner);
-        el.appendChild(mask);
-        el.appendChild(document.createTextNode(' '));
-      });
+      // The subhead block starts after the headline finishes its run
+      splitWords(el, el.textContent, blockIndex * 0.3);
     });
   }
 
@@ -264,12 +282,36 @@
     })(start);
   }
 
+  /* The headline flips with the side. The words on screen retire up out of
+     their masks, then the new ones rise in from below on the same stagger as
+     first paint — so the swap reads as one travel rather than a cut. */
+  var heading = document.querySelector('[data-side-copy]');
+  var headingTimer = 0;
+  var HEADING_OUT = 300; // matches the .is-out fall in styles.css
+
+  function swapHeadline(index) {
+    if (!heading) return;
+    var next = index === 1 ? heading.dataset.hire : heading.dataset.work;
+    if (!next) return;
+    if (reduceMotion) { heading.textContent = next; return; }
+    clearTimeout(headingTimer);
+    var out = heading.querySelectorAll('.wi');
+    out.forEach(function (inner, i) {
+      inner.style.setProperty('--d', (i * 0.05) + 's');
+      inner.classList.add('is-out');
+    });
+    headingTimer = setTimeout(function () {
+      splitWords(heading, next, 0);
+    }, HEADING_OUT + (out.length - 1) * 50);
+  }
+
   function selectTab(index) {
     tabs.forEach(function (tab, i) {
       tab.classList.toggle('is-active', i === index);
       tab.setAttribute('aria-selected', i === index ? 'true' : 'false');
       swapImgs[i].classList.toggle('is-active', i === index);
     });
+    swapHeadline(index);
   }
   tabs.forEach(function (tab, i) {
     tab.addEventListener('click', function () {
@@ -287,6 +329,84 @@
       }
     });
   });
+
+  /* ---------- Side toggle: hero → nav ----------
+     The toggle starts under the hero phone and sticks to the bar when the
+     page scrolls up to it — CSS position:sticky does the travel, so it is the
+     browser's own scrolling, not a scroll handler chasing it a frame late.
+
+     JS only measures: where the rail starts (the toggle's place in the hero),
+     how far below the top of the viewport the bar's centre line is, and the
+     one horizontal offset it keeps the whole way — the toggle never moves
+     sideways, in the hero or in the bar. An observer flips .is-docked at the
+     moment it lands. */
+
+  var tabsSlot = document.getElementById('hero-tabs-slot');
+  var tabsRail = document.getElementById('tabs-rail');
+  var tabsPill = document.getElementById('hero-tabs');
+  var railSentinel = document.getElementById('rail-sentinel');
+
+  if (tabsSlot && tabsRail && tabsPill) (function () {
+    var wordmark = nav.querySelector('.wordmark');
+    var navActions = nav.querySelector('.nav-actions');
+    var dockTop = 10, dockIO = null;
+
+    function measure() {
+      var pill = tabsPill.getBoundingClientRect();
+      var slot = tabsSlot.getBoundingClientRect();
+
+      // The slot holds the toggle's place in the hero — the rail starts there
+      tabsSlot.style.height = pill.height + 'px';
+      tabsRail.style.setProperty('--rail-top', Math.round(slot.top + pageYOffset) + 'px');
+
+      // Sat on the bar's own centre line — the one the wordmark, the theme
+      // toggle and the CTA all sit on — rather than centred in the bar's box,
+      // which the toggle's taller pill would read low against.
+      var inner = nav.querySelector('.nav-inner').getBoundingClientRect();
+      dockTop = Math.max(0, +(inner.top + inner.height / 2 - pill.height / 2).toFixed(2));
+      tabsRail.style.setProperty('--dock-top', dockTop + 'px');
+
+      // One horizontal place, held from the hero into the bar: the middle,
+      // pulled aside only as far as it takes to clear the wordmark and the
+      // actions on a bar too narrow to hold all three side by side.
+      var rail = tabsRail.getBoundingClientRect();
+      var mid = rail.left + rail.width / 2;
+      var GAP = 10, x = 0;
+      var left = wordmark && wordmark.getBoundingClientRect();
+      var right = navActions && navActions.getBoundingClientRect();
+      if (left && right) {
+        var lo = left.right + GAP + pill.width / 2;   // leftmost centre that clears the wordmark
+        var hi = right.left - GAP - pill.width / 2;   // rightmost that clears the actions
+        if (hi > lo) x = Math.round(Math.min(hi, Math.max(lo, mid)) - mid);
+      }
+      tabsRail.style.setProperty('--x', x + 'px');
+
+      if (dockIO) dockIO.disconnect();
+      // The sentinel sits at the top of the rail — the toggle's own top edge —
+      // so it leaves this inset root the moment the toggle touches the bottom
+      // of the bar, which is when the toggle sheds its fill and the section
+      // links step aside. It is still sliding the last few pixels up into
+      // place by then, and arrives with the bar already made room.
+      dockIO = new IntersectionObserver(function (entries) {
+        var docked = !entries[entries.length - 1].isIntersecting;
+        tabsRail.classList.toggle('is-docked', docked);
+        nav.classList.toggle('tabs-docked', docked);
+      }, { rootMargin: -nav.offsetHeight + 'px 0px 0px 0px', threshold: 0 });
+      dockIO.observe(railSentinel);
+    }
+
+    measure();
+
+    // Fonts and the loader both settle the hero's height; re-measure after
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
+    addEventListener('load', measure);
+
+    var reMeasure;
+    addEventListener('resize', function () {
+      clearTimeout(reMeasure);
+      reMeasure = setTimeout(measure, 150);
+    }, { passive: true });
+  })();
 
   /* ---------- Pinned phone: crossfade per copy beat ----------
      Each copy block reports when it crosses the middle band of the

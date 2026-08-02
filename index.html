@@ -3,6 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- First request off the parser, ahead of the fonts, the stylesheet and
+       every screenshot: the loader's own artwork. Nothing on the page is
+       visible before the overlay clears, so nothing else deserves the
+       bandwidth first — and until this lands the overlay is a blank screen.
+       The type hint keeps a browser without WebP from fetching a file it
+       cannot decode; those fall through to the PNG named in the CSS below. -->
+  <link rel="preload" as="image" href="assets/cloche-refresh-sheet.webp" type="image/webp" fetchpriority="high">
+
   <title>Cloche — Every shift, covered.</title>
   <meta name="description" content="Cloche is the app where Australian hospitality venues and workers find each other directly. Every shift, covered.">
 
@@ -65,20 +74,26 @@
       display: block;
       width: 100%; height: 100%;
       /* 6x6 sheet at 600%: each 20% step of background-position is one cell */
+      /* PNG first as the standalone fallback: a browser with no image-set()
+         (or no type() inside it) drops the second declaration whole and keeps
+         this one. Everything current takes the WebP — 118 KB against 395 KB,
+         on the one asset the whole first paint waits for. */
       background: url("assets/cloche-refresh-sheet.png") 0% 0% / 600% 600% no-repeat;
+      background-image: image-set(
+        url("assets/cloche-refresh-sheet.webp") type("image/webp"),
+        url("assets/cloche-refresh-sheet.png") type("image/png"));
     }
   </style>
   <noscript><style>#loader { display: none; }</style></noscript>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'; this.onload=null;">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@600;700&family=Newsreader:opsz@6..72&display=swap" rel="stylesheet" media="print" onload="this.media='all'; this.onload=null;">
 
-  <!-- The loader must never wait on its own artwork -->
-  <link rel="preload" as="image" href="assets/cloche-refresh-sheet.png">
+  <!-- The loader's artwork is preloaded at the top of <head>, ahead of these -->
   <link rel="stylesheet" href="styles.css" media="print" onload="this.media='all'; this.onload=null;">
   <noscript>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@600;700&family=Newsreader:opsz@6..72&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
   </noscript>
 </head>
@@ -383,6 +398,21 @@
     </div>
   </header>
 
+  <!-- ============ SIDE TOGGLE ============
+       Sits under the hero phone, sticks to the nav when the page scrolls up
+       to it, and stays there. A sticky rail rather than scroll-driven
+       positioning, so the browser owns the motion and it never stutters.
+       script.js only measures where the rail starts and how far it sits from
+       the middle of the bar. -->
+  <div class="tabs-rail" id="tabs-rail">
+    <!-- Crosses the nav line exactly when the toggle reaches it -->
+    <div class="rail-sentinel" id="rail-sentinel" aria-hidden="true"></div>
+    <div class="tabs hero-tabs" id="hero-tabs" role="tablist" aria-label="Choose a side">
+      <button class="tab is-active" id="tab-work" role="tab" aria-selected="true" aria-controls="hero-screen-work" type="button" aria-label="I'm looking for work">Work</button>
+      <button class="tab" id="tab-hire" role="tab" aria-selected="false" aria-controls="hero-screen-hire" type="button" aria-label="I'm hiring">Hire</button>
+    </div>
+  </div>
+
   <main id="top">
 
     <!-- ============ HERO ============ -->
@@ -393,7 +423,11 @@
 
       <div class="hero-inner">
         <div class="hero-copy">
-          <h1 id="hero-heading" class="split-words">Every shift, covered.</h1>
+          <!-- The headline is the third thing the side toggle drives, after the
+               screenshot and the refresh beat. Work is the default side, so the
+               static markup carries its copy for no-JS and first paint. -->
+          <h1 id="hero-heading" class="split-words" data-side-copy
+              data-work="Work better" data-hire="Hire smarter">Work better</h1>
           <p class="hero-sub split-words">Hospitality work, straight from the venues and workers around you.</p>
           <p class="hero-detail" data-reveal style="--d: 0.1s;">Cloche puts bars, cafes and restaurants in direct contact with the people who staff them. No recruiter in the middle. Post a shift, find a shift, sorted.</p>
           <div class="hero-ctas" data-reveal style="--d: 0.2s;">
@@ -414,9 +448,21 @@
           <div class="device-glow" aria-hidden="true"></div>
           <div class="device">
             <div class="device-screen swap-screen">
-              <img class="swap-img is-active" role="tabpanel" id="hero-screen-work" aria-labelledby="tab-work"
-                   src="assets/01-feed.png" data-dark-src="assets/01-feed-dark.png" width="1206" height="2622" fetchpriority="high"
-                   alt="Worker feed: a bartender job at The Tin Whistle in Newtown, with an AI summary line above the full ad and filter chips below.">
+              <!-- The only eager image on the page, so it is the only one that
+                   the preload scanner reaches before script.js can pick a
+                   theme — which is why it is a <picture> and not a plain
+                   [data-dark-src] swap. Left as an <img>, a dark visitor
+                   downloaded the light screenshot and then the dark one on top
+                   of it. The <source> lets the scanner choose once, up front,
+                   and syncMedia() flips its media on an explicit toggle.
+                   No fetchpriority: it sits behind the overlay until the loader
+                   hands over, so it must not outrank the loader's own art. -->
+              <picture>
+                <source data-dark-source srcset="assets/01-feed-dark.png" media="(prefers-color-scheme: dark)">
+                <img class="swap-img is-active" role="tabpanel" id="hero-screen-work" aria-labelledby="tab-work"
+                     src="assets/01-feed.png" width="1206" height="2622"
+                     alt="Worker feed: a bartender job at The Tin Whistle in Newtown, with an AI summary line above the full ad and filter chips below.">
+              </picture>
               <img class="swap-img" role="tabpanel" id="hero-screen-hire" aria-labelledby="tab-hire"
                    src="assets/10-venue-feed.png" data-dark-src="assets/10-venue-feed-dark.png" width="1206" height="2622" loading="lazy"
                    alt="Venue feed: workers posting their availability, each with an AI summary of their post.">
@@ -424,10 +470,9 @@
               <div class="screen-cloche" id="screen-cloche" aria-hidden="true"></div>
             </div>
           </div>
-          <div class="tabs hero-tabs" role="tablist" aria-label="Choose a side" data-reveal style="--d: 0.15s;">
-            <button class="tab is-active" id="tab-work" role="tab" aria-selected="true" aria-controls="hero-screen-work" type="button">I'm looking for work</button>
-            <button class="tab" id="tab-hire" role="tab" aria-selected="false" aria-controls="hero-screen-hire" type="button">I'm hiring</button>
-          </div>
+          <!-- The toggle itself lives in #tabs-rail (below the nav): it starts
+               here, sticks to the bar and stays. This holds its place. -->
+          <div class="hero-tabs-slot" id="hero-tabs-slot" aria-hidden="true"></div>
         </div>
       </div>
     </section>
@@ -690,13 +735,30 @@
             <div class="device device-small">
               <div class="device-screen">
                 <!-- Scrubbed against scroll position in JS; the poster is the
-                     reduced-motion and video-failure fallback -->
+                     reduced-motion and video-failure fallback.
+
+                     The poster is set by syncMedia() rather than sitting in the
+                     markup: a poster attribute is fetched on layout, before
+                     script.js can pick a theme, so a hardcoded light one meant
+                     dark visitors pulled both variants. Unlike an <img> there
+                     is no <picture> to defer to here, so JS owns it — and the
+                     <noscript> below covers the only case that leaves out. -->
                 <video id="cloche-video" muted playsinline preload="none"
-                       poster="assets/15-pull-refresh.png"
+                       data-light-poster="assets/15-pull-refresh.png"
                        data-dark-poster="assets/15-pull-refresh-dark.png"
                        aria-label="The feed pulled down, revealing a green cloche lifting off a plate.">
                   <source src="assets/pull-refresh.mp4" type="video/mp4">
                 </video>
+                <!-- No JS means no scrubbing and no poster, so stand in a still.
+                     <picture> here because this one IS in the markup at scan
+                     time, so it can pick its own variant. -->
+                <noscript>
+                  <picture>
+                    <source srcset="assets/15-pull-refresh-dark.png" media="(prefers-color-scheme: dark)">
+                    <img src="assets/15-pull-refresh.png" width="1206" height="2622"
+                         alt="The feed pulled down, revealing a green cloche lifting off a plate.">
+                  </picture>
+                </noscript>
                 <!-- Only the video is recoloured by filter (see styles.css); the
                      filter flips the phone's black Dynamic Island to white, so
                      this patches it back. Sits above the video, dark theme only. -->

@@ -23,6 +23,11 @@
 
   --font-display: "Inter Tight", "Inter", system-ui, sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
+  /* Hero headline only. Robinhood sets their HPTO headline in Martina Plantijn
+     (ABC Dinamo, licensed) — it leads the stack so it takes over the moment
+     the licence lands. Newsreader is the open Plantin-lineage stand-in that
+     ships today: same large x-height, same sturdy bracketed serifs. */
+  --font-hero: "Martina Plantijn", "Newsreader", "Times New Roman", Times, serif;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 
   color-scheme: light;
@@ -79,6 +84,8 @@
 html { scroll-behavior: smooth; }
 
 body {
+  /* The side toggle's rail is absolute against the page, not the viewport */
+  position: relative;
   font-family: var(--font-body);
   font-size: 17px;
   line-height: 1.65;
@@ -325,6 +332,17 @@ html.is-loading .hero-device .device-glow { opacity: 0; }
   gap: clamp(32px, 5vw, 72px);
 }
 
+/* The one serif on the page. Set at book weight and near-solid leading, the
+   way Robinhood sets theirs — bold would fill in the thin strokes. */
+.hero h1 {
+  font-family: var(--font-hero);
+  font-weight: 400;
+  font-optical-sizing: auto;
+  letter-spacing: -0.01em;
+  line-height: 0.94;
+  text-wrap: pretty;
+}
+
 .hero-sub {
   font-size: clamp(1.15rem, 2vw, 1.4rem);
   font-weight: 500;
@@ -384,7 +402,11 @@ html.is-arriving .swap-screen .swap-img {
   width: 8.96%;
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
+  /* Same sheet, same PNG-then-image-set fallback pair as the preloader mark */
   background: url("assets/cloche-refresh-sheet.png") 0% 0% / 600% 600% no-repeat;
+  background-image: image-set(
+    url("assets/cloche-refresh-sheet.webp") type("image/webp"),
+    url("assets/cloche-refresh-sheet.png") type("image/png"));
   opacity: 0;
   transition: opacity 0.15s ease;
   pointer-events: none;
@@ -419,6 +441,20 @@ html.is-loading .hero-ambient { opacity: 0; }
   animation-delay: var(--d, 0s);
 }
 @keyframes word-rise { to { transform: translateY(0); } }
+
+/* Flipping the side retires the old headline up out of its own mask before
+   the new one rises in from below — one continuous travel, not a cut. */
+.split-words .wi.is-out {
+  animation: word-fall 0.3s cubic-bezier(0.7, 0, 0.84, 0) forwards;
+  /* The shorthand above resets animation-delay, so restate the stagger */
+  animation-delay: var(--d, 0s);
+}
+/* Explicit from: a settled word sits at 0, but the underlying declared
+   transform is 110%, which is where an implicit from would start it. */
+@keyframes word-fall {
+  from { transform: translateY(0); }
+  to { transform: translateY(-110%); }
+}
 
 /* ---------- Marquee ---------- */
 
@@ -747,17 +783,79 @@ html.js .gallery-nav { display: flex; }
 .tab {
   font: inherit;
   font-weight: 600;
-  font-size: 0.95rem;
+  /* Sized to sit in the nav once the hero toggle docks there — it has to
+     share the bar with the wordmark and the actions. */
+  font-size: 0.9rem;
   color: var(--muted);
   background: none;
   border: 0;
   border-radius: 999px;
-  padding: 9px 20px;
+  padding: 8px 17px;
   cursor: pointer;
   transition: background 0.25s, color 0.25s;
+  white-space: nowrap;
 }
 .tab.is-active { background: var(--accent); color: #fff; }
 :root[data-theme="dark"] .tab.is-active { color: #06130B; }
+/* ---------- Side toggle: hero → nav ----------
+   The rail spans from the toggle's place in the hero to the foot of the page,
+   and the toggle is sticky inside it: it scrolls with the hero, meets the bar
+   and stays there for the rest of the page. Native sticky, so the motion is
+   the browser's, not a scroll handler's.
+
+   Its horizontal place never changes: --x is measured once and holds from
+   the hero all the way into the bar, so the only thing that ever moves is
+   the page under it. */
+
+.hero-tabs-slot { align-self: stretch; }
+
+.tabs-rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--rail-top, 0px);
+  bottom: 0;
+  z-index: 60;
+  pointer-events: none;
+  /* Arrives with the rest of the hero rather than waiting under the loader */
+  opacity: 1;
+  transition: opacity 0.7s ease 0.2s;
+}
+html.is-loading .tabs-rail { opacity: 0; transition: none; }
+
+.rail-sentinel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+}
+.tabs-rail .hero-tabs {
+  position: sticky;
+  top: var(--dock-top, 10px);
+  /* Block-level, so the auto margins actually centre it (.tabs is inline) */
+  display: flex;
+  width: max-content;
+  margin-inline: auto;
+  pointer-events: auto;
+  /* 3d, so it gets its own layer: Safari paints a backdrop-filter panel (the
+     scrolled nav) over plain siblings whatever the z-index says, and the
+     toggle has to stay on top of the bar it sits in. */
+  transform: translate3d(var(--x, 0px), 0, 0);
+  transition: background 0.3s, border-color 0.3s;
+}
+/* Docked: it drops its own chrome entirely — no fill, no outline — so only
+   the selected side reads as a control and the rest is bar. */
+.tabs-rail.is-docked .hero-tabs {
+  background: transparent;
+  border-color: transparent;
+}
+/* The section links step aside for it — one pill in the middle of the bar */
+.nav.tabs-docked .nav-pill {
+  opacity: 0;
+  pointer-events: none;
+}
+.nav-pill { transition: background 0.3s, border-color 0.3s, opacity 0.25s; }
 
 /* Static two-column copy — the interactive toggle lives in the hero */
 .sides-columns {
@@ -1063,22 +1161,102 @@ html.js .gallery-nav { display: flex; }
 @media (max-width: 860px) {
   .nav-pill { display: none; }
 
-  /* Phone first on small screens. The whole opening beat is a refresh
-     happening on a phone, so the phone has to be wholly on screen when the
-     page settles — with the copy stacked underneath it rather than above,
-     where it pushed the phone past the fold. */
-  .hero {
-    min-height: auto;
-    align-items: flex-start;
-    padding: 84px 0 64px;
+  /* The page opens on the hero alone — no bar. The bar is only ever the
+     toggle's destination, so it builds itself as the toggle arrives: its
+     contents and its own blurred panel fade in together on .tabs-docked,
+     and the toggle slides into a bar that appeared to meet it.
+
+     The bar keeps its box the whole time (the toggle measures its centre
+     line against .nav-inner, and the dock observer against its height), so
+     nothing here touches layout — only paint. visibility, not just opacity,
+     so the wordmark and the CTA are out of the tab order until they show. */
+  .nav { pointer-events: none; }
+  .nav-inner > * {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.4s ease, visibility 0s linear 0.4s;
   }
-  .hero-inner { grid-template-columns: 1fr; text-align: left; }
-  .hero-device { order: -1; margin-top: 0; }
-  /* Sized off the viewport so the phone AND its toggle always fit the first
-     screen: 0.46 is the screen's 1206/2622 ratio (width from height), and the
-     250px covers the nav, the hero's top padding, the toggle and its gap. */
-  .hero-device .device { width: min(240px, 62vw, calc((100svh - 250px) * 0.46)); }
-  .hero-copy { margin-top: 34px; }
+  .nav.scrolled {
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-bottom-color: transparent;
+  }
+
+  .nav.tabs-docked { pointer-events: auto; }
+  .nav.tabs-docked .nav-inner > * {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.4s ease, visibility 0s;
+  }
+  .nav.scrolled.tabs-docked {
+    background: var(--nav-bg);
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+    border-bottom-color: var(--line);
+  }
+
+  /* One screen, read top down: the copy at the top, the phone and its toggle
+     sitting on the bottom edge — where the real phone's own controls are, so
+     the app on screen lines up with the device holding it. svh, so the bottom
+     of the hero is above the browser bar however it is expanded.
+
+     The loader zoom and the ambient light both measure the device every time
+     they run, so both follow it down here with no extra wiring. */
+  .hero {
+    min-height: 100svh;
+    align-items: stretch;
+    /* Nothing is in the bar until the toggle docks into it, so the copy has
+       the top of the screen to itself and starts right at it. */
+    padding: 28px 0 10px;
+    /* What the copy above the phone is about to measure — the headline, the
+       sub and the store buttons. It scales with the viewport because the type
+       does, and it stops where the type's own clamps do. Everything the phone
+       is allowed to take is what is left after this. */
+    --copy-block: min(calc(30vw + 95px), 258px);
+  }
+  .hero-inner {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    align-items: start;
+    text-align: left;
+    gap: 14px;
+  }
+  /* Every point the copy gives up here goes straight into the phone, which is
+     the thing the screen is actually selling.
+
+     Both are measured in em against a font that scales with the viewport, so
+     the headline breaks after "shift," and the sub runs to the same number of
+     lines on every phone. The block below it is sized off a fixed budget —
+     that only holds if the copy above it is the same height everywhere, and a
+     px max-width would flip a line on and off between 360 and 390. */
+  .hero h1 { font-size: clamp(2.2rem, 9.4vw, 3.4rem); max-width: 7.6em; }
+  .hero-sub {
+    margin-top: 12px;
+    font-size: clamp(0.95rem, 4.3vw, 1.15rem);
+    max-width: 21em;
+  }
+  /* The elaboration would push the phone off the bottom of the one screen this
+     beat gets; the sides and features sections carry it further down. */
+  .hero-detail { display: none; }
+  /* The stores sit between the copy and the phone: the sentence, then the two
+     ways to act on it, then the thing itself. */
+  .hero-ctas { margin-top: 18px; gap: 10px; }
+  .hero-ctas .btn-store { flex: 1 1 0; justify-content: center; padding: 9px 12px; }
+  .hero-ctas .btn-store svg { width: 21px; height: 21px; }
+  .hero-ctas .btn-store span { font-size: 0.86rem; }
+  .hero-ctas .btn-store small { font-size: 0.64rem; }
+
+  .hero-device { align-self: end; margin-top: 0; gap: 12px; }
+  /* The phone takes the whole of what the screen has left: everything the
+     copy, the toggle and the padding do not need. 0.46 turns the height it
+     can have into the width it may be (the screen's 1206/2622 ratio), and the
+     116px is the toggle, the two paddings and ~20px of air under the buttons.
+     The +4px is deliberately shy of the frame's own 10px of bezel, so the
+     phone always lands a little inside its allowance rather than on it. */
+  .hero-device .device {
+    width: max(120px, min(300px, 74vw, calc((100svh - var(--copy-block) - 116px) * 0.46 + 4px)));
+  }
 
   .sides-columns { grid-template-columns: 1fr; }
 
@@ -1119,4 +1297,37 @@ html.js .gallery-nav { display: flex; }
 
   .btn-store { flex: 1 1 auto; justify-content: center; }
   .hero-tabs .tab { padding: 8px 14px; font-size: 0.88rem; }
+}
+
+/* A narrow bar has to hold the wordmark, the toggle and the CTA at once with
+   the side toggle between them, so everything gets trimmed. Sized statically,
+   never on dock, so nothing in the bar shifts as you scroll. */
+@media (max-width: 700px) {
+  .nav-inner { gap: 10px; }
+  .wordmark { font-size: 1.2rem; }
+  .nav-actions { gap: 8px; }
+  .nav-actions .btn-sm { font-size: 0.8rem; padding: 7px 12px; }
+  .theme-toggle { width: 33px; height: 33px; }
+  .theme-toggle svg { width: 16px; height: 16px; }
+  .hero-tabs .tab { padding: 7px 14px; font-size: 0.86rem; }
+}
+
+@media (max-width: 420px) {
+  .nav-inner { width: calc(100% - 28px); gap: 8px; }
+  .wordmark { font-size: 1.05rem; }
+  .nav-actions { gap: 6px; }
+  .nav-actions .btn-sm { font-size: 0.7rem; padding: 6px 10px; }
+  .theme-toggle { width: 30px; height: 30px; }
+  .theme-toggle svg { width: 15px; height: 15px; }
+  .hero-tabs .tab { padding: 6px 12px; font-size: 0.82rem; }
+}
+
+/* The last of the small phones: everything down one more notch so the bar
+   still holds all four. */
+@media (max-width: 360px) {
+  .nav-inner { width: calc(100% - 20px); }
+  .wordmark { font-size: 1rem; }
+  .nav-actions .btn-sm { font-size: 0.66rem; padding: 5px 9px; }
+  .theme-toggle { width: 28px; height: 28px; }
+  .hero-tabs .tab { padding: 5px 11px; font-size: 0.8rem; }
 }
