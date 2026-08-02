@@ -75,19 +75,47 @@
      that starts at translateY(110%) and rises with a 70ms stagger.
      Skipped entirely under reduced motion — the text just renders. */
 
+  /* Where [data-hl]'s phrase sits in the split copy, as a start index into
+     words, or -1. Compared lowercased and stripped of punctuation so the
+     attribute can name the words plainly however the copy punctuates them. */
+  function accentStart(words, phrase) {
+    if (!phrase) return -1;
+    var bare = function (w) { return w.toLowerCase().replace(/[^a-z0-9]/g, ''); };
+    var want = phrase.trim().split(/\s+/).map(bare);
+    var have = words.map(bare);
+    for (var i = 0; i + want.length <= have.length; i++) {
+      var hit = true;
+      for (var j = 0; j < want.length; j++) if (have[i + j] !== want[j]) { hit = false; break; }
+      if (hit) return i;
+    }
+    return -1;
+  }
+
   function splitWords(el, text, baseDelay) {
     var words = String(text).trim().split(/\s+/);
+    // Each accented word carries .hl itself — the mark has to ride the same
+    // per-word mask as the rise, so it can't wrap the run in one element.
+    var phrase = el.dataset.hl || '';
+    var hlLen = phrase ? phrase.trim().split(/\s+/).length : 0;
+    var hlAt = accentStart(words, phrase);
     el.textContent = '';
     words.forEach(function (word, i) {
+      var lit = hlAt >= 0 && i >= hlAt && i < hlAt + hlLen;
+      // Inside a multi-word run the space has to be carried by the word itself,
+      // as a non-breaking one so inline-block doesn't collapse it. Left as the
+      // text node between masks it falls outside the accent's box and the wash
+      // comes out as one bar per word instead of a single unbroken mark.
+      var joined = lit && i < hlAt + hlLen - 1;
       var mask = document.createElement('span');
       mask.className = 'w';
       var inner = document.createElement('span');
       inner.className = 'wi';
-      inner.textContent = word;
+      if (lit) inner.classList.add('hl');
+      inner.textContent = joined ? word + ' ' : word;
       inner.style.setProperty('--d', (baseDelay + i * 0.07) + 's');
       mask.appendChild(inner);
       el.appendChild(mask);
-      el.appendChild(document.createTextNode(' '));
+      if (!joined) el.appendChild(document.createTextNode(' '));
     });
   }
 
@@ -285,24 +313,31 @@
   /* The headline flips with the side. The words on screen retire up out of
      their masks, then the new ones rise in from below on the same stagger as
      first paint — so the swap reads as one travel rather than a cut. */
-  var heading = document.querySelector('[data-side-copy]');
-  var headingTimer = 0;
+  var headingEls = document.querySelectorAll('[data-side-copy]');
+  var headingTimers = [];
   var HEADING_OUT = 300; // matches the .is-out fall in styles.css
 
   function swapHeadline(index) {
-    if (!heading) return;
-    var next = index === 1 ? heading.dataset.hire : heading.dataset.work;
-    if (!next) return;
-    if (reduceMotion) { heading.textContent = next; return; }
-    clearTimeout(headingTimer);
-    var out = heading.querySelectorAll('.wi');
-    out.forEach(function (inner, i) {
-      inner.style.setProperty('--d', (i * 0.05) + 's');
-      inner.classList.add('is-out');
+    headingTimers.forEach(clearTimeout);
+    headingTimers = [];
+    headingEls.forEach(function (heading) {
+      var next = index === 1 ? heading.dataset.hire : heading.dataset.work;
+      if (!next) return;
+      // The accent belongs to the copy, so it changes with it — splitWords
+      // reads data-hl, so set the incoming side's phrase before rebuilding.
+      heading.dataset.hl = (index === 1 ? heading.dataset.hireHl : heading.dataset.workHl) || '';
+      // Under reduced motion splitWords still runs: CSS pins .wi at rest, so
+      // this is a plain re-render that keeps the accent spans.
+      if (reduceMotion) { splitWords(heading, next, 0); return; }
+      var out = heading.querySelectorAll('.wi');
+      out.forEach(function (inner, i) {
+        inner.style.setProperty('--d', (i * 0.05) + 's');
+        inner.classList.add('is-out');
+      });
+      headingTimers.push(setTimeout(function () {
+        splitWords(heading, next, 0);
+      }, HEADING_OUT + (out.length - 1) * 50));
     });
-    headingTimer = setTimeout(function () {
-      splitWords(heading, next, 0);
-    }, HEADING_OUT + (out.length - 1) * 50);
   }
 
   function selectTab(index) {
@@ -400,6 +435,21 @@
     // Fonts and the loader both settle the hero's height; re-measure after
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
     addEventListener('load', measure);
+
+    /* --rail-top is an absolute page coordinate, so anything that moves the
+       slot after the reads above leaves the toggle parked at a stale spot —
+       and on a phone that spot is off the bottom of the hero. The copy above
+       it is what moves: it reflows as the hero type settles, and again on
+       every side flip, where the headline can change line count. Watch the
+       triggers.
+
+       Deliberately not the slot itself: measure() sets its height, which would
+       feed straight back in. */
+    if (window.ResizeObserver) {
+      var slotRO = new ResizeObserver(function () { measure(); });
+      slotRO.observe(document.querySelector('.hero-copy'));
+      slotRO.observe(document.querySelector('.hero-device'));
+    }
 
     var reMeasure;
     addEventListener('resize', function () {

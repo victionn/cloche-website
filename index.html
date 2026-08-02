@@ -425,10 +425,15 @@
         <div class="hero-copy">
           <!-- The headline is the third thing the side toggle drives, after the
                screenshot and the refresh beat. Work is the default side, so the
-               static markup carries its copy for no-JS and first paint. -->
-          <h1 id="hero-heading" class="split-words" data-side-copy
-              data-work="Work better" data-hire="Hire smarter">Work better</h1>
-          <p class="hero-sub split-words">Hospitality work, straight from the venues and workers around you.</p>
+               static markup carries its copy for no-JS and first paint.
+               data-hl names the run of words the accent lands on; the side
+               variants carry their own so the highlight travels with the copy. -->
+          <h1 id="hero-heading" class="split-words" data-side-copy data-hl="better"
+              data-work="Work better" data-work-hl="better"
+              data-hire="Hire smarter" data-hire-hl="smarter">Work <em class="hl">better</em></h1>
+          <p class="hero-sub split-words" data-side-copy data-hl="near you"
+             data-work="Discover open positions near you" data-work-hl="near you"
+             data-hire="Find suitable candidates instantly" data-hire-hl="instantly">Discover open positions <em class="hl">near you</em></p>
           <p class="hero-detail" data-reveal style="--d: 0.1s;">Cloche puts bars, cafes and restaurants in direct contact with the people who staff them. No recruiter in the middle. Post a shift, find a shift, sorted.</p>
           <div class="hero-ctas" data-reveal style="--d: 0.2s;">
             <a class="btn btn-store magnetic" href="#get">
@@ -493,6 +498,41 @@
           <span>All-rounder</span><span aria-hidden="true">·</span>
         </div>
       </div>
+    </section>
+
+    <!-- ============ FULL-SCREEN MAP ============
+         The app's suburb map, blown up to the whole viewport. The section is
+         tall on purpose: the extra height is the scrub track. Scrolling starts
+         on the bare map and rains the pins onto it, smallest counts first,
+         ending on the CBD's 37. Pins are DOM elements over a genuinely empty
+         basemap (captured from the app in the simulator with a zero-match
+         filter), so each one can land on real map detail — roads, water,
+         labels — and stay welded to it through the zoom. -->
+    <section class="mapscroll" id="map" aria-labelledby="map-heading">
+      <div class="map-sticky">
+        <div class="map-stage" id="map-stage" aria-hidden="true">
+          <img class="map-base" src="assets/map-base.png" data-dark-src="assets/map-base-dark.png"
+               width="1206" height="1720" loading="lazy" alt="">
+          <!-- pins injected by script.js -->
+        </div>
+        <div class="map-scrim map-scrim-top" aria-hidden="true"></div>
+        <div class="map-scrim map-scrim-bottom" aria-hidden="true"></div>
+        <!-- The wrapper's opacity is scrubbed IN by JS over the back half of
+             the pin shower, so the screen resolves into the words rather than
+             opening on them. The children keep the usual entrance reveal,
+             which is also what shows them under reduced motion. -->
+        <div class="map-titles" id="map-titles">
+          <p class="kicker" data-reveal>The live map</p>
+          <h2 id="map-heading" data-reveal>Sydney, covered.</h2>
+          <p class="map-note" data-reveal>Suburb pins, sized and coloured by open jobs.</p>
+        </div>
+        <!-- The app's own "314 jobs · 48 suburbs" pill; counts up as pins land -->
+        <div class="map-chip" id="map-chip" aria-hidden="true">
+          <span class="map-chip-dot"></span>
+          <span><b id="map-chip-jobs">314</b> jobs · <b id="map-chip-suburbs">48</b> suburbs</span>
+        </div>
+      </div>
+      <p class="visually-hidden">A map of Sydney fills the screen. As the page scrolls, suburb pins land on it one by one — 314 open jobs across 48 suburbs, each pin sized and coloured by how many jobs are open there.</p>
     </section>
 
     <!-- ============ SCROLL GALLERY ============
@@ -600,41 +640,6 @@
           </button>
         </div>
       </div>
-    </section>
-
-    <!-- ============ FULL-SCREEN MAP ============
-         The app's suburb map, blown up to the whole viewport. The section is
-         tall on purpose: the extra height is the scrub track. Scrolling starts
-         on the bare map and rains the pins onto it, smallest counts first,
-         ending on the CBD's 37. Pins are DOM elements over a genuinely empty
-         basemap (captured from the app in the simulator with a zero-match
-         filter), so each one can land on real map detail — roads, water,
-         labels — and stay welded to it through the zoom. -->
-    <section class="mapscroll" id="map" aria-labelledby="map-heading">
-      <div class="map-sticky">
-        <div class="map-stage" id="map-stage" aria-hidden="true">
-          <img class="map-base" src="assets/map-base.png" data-dark-src="assets/map-base-dark.png"
-               width="1206" height="1720" loading="lazy" alt="">
-          <!-- pins injected by script.js -->
-        </div>
-        <div class="map-scrim map-scrim-top" aria-hidden="true"></div>
-        <div class="map-scrim map-scrim-bottom" aria-hidden="true"></div>
-        <!-- The wrapper's opacity is scrubbed IN by JS over the back half of
-             the pin shower, so the screen resolves into the words rather than
-             opening on them. The children keep the usual entrance reveal,
-             which is also what shows them under reduced motion. -->
-        <div class="map-titles" id="map-titles">
-          <p class="kicker" data-reveal>The live map</p>
-          <h2 id="map-heading" data-reveal>Sydney, covered.</h2>
-          <p class="map-note" data-reveal>Suburb pins, sized and coloured by open jobs.</p>
-        </div>
-        <!-- The app's own "314 jobs · 48 suburbs" pill; counts up as pins land -->
-        <div class="map-chip" id="map-chip" aria-hidden="true">
-          <span class="map-chip-dot"></span>
-          <span><b id="map-chip-jobs">314</b> jobs · <b id="map-chip-suburbs">48</b> suburbs</span>
-        </div>
-      </div>
-      <p class="visually-hidden">A map of Sydney fills the screen. As the page scrolls, suburb pins land on it one by one — 314 open jobs across 48 suburbs, each pin sized and coloured by how many jobs are open there.</p>
     </section>
 
     <!-- ============ TWO SIDES, ONE APP ============ -->

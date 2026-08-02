@@ -273,8 +273,10 @@ h3 { font-size: clamp(1.3rem, 2.2vw, 1.7rem); line-height: 1.15; }
   position: relative;
   width: min(300px, 76vw);
   background: var(--bezel);
-  border-radius: 44px;
-  padding: 10px;
+  /* Screen radius + bezel, so the frame stays concentric with the screen it
+     wraps — halving the padding without this leaves a fat corner on a thin edge */
+  border-radius: 39px;
+  padding: 5px;
   box-shadow:
     0 2px 6px rgba(0, 0, 0, 0.18),
     0 30px 70px -20px rgba(0, 0, 0, 0.35);
@@ -381,6 +383,25 @@ html.is-loading .hero-device .device-glow { opacity: 0; }
    app's own pull depth, so the mark sits in the gap it opened. */
 .swap-screen { background: var(--paper); }
 
+/* The screenshots are real device captures, so they carry a real status bar —
+   somebody else's clock, carrier and battery, plus a dynamic island that reads
+   as a second notch inside our own frame. Cover that strip rather than
+   re-exporting the art: both hero screens are flat #fff / #000 down to the
+   island, and --paper is those exact two values, so the mask is invisible.
+   6.2% clears the island (156px of the 2622px capture) and still stops short
+   of the first content — the feed's map flag starts at 176px.
+   Hero only: the map screens further down have live pixels up under the bar. */
+.swap-screen::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6.2%;
+  background: var(--paper);
+  pointer-events: none;
+}
+
 /* The loader hands over with the feed already pulled down; dropping
    .is-arriving lets it settle up once the phone has landed. The 13% matches
    the app's own pull depth, so the mark sits in the gap it opened.
@@ -431,6 +452,31 @@ html.is-arriving .swap-screen .swap-img {
    handoff doesn't pop a fully-lit background behind the arriving phone. */
 html.is-loading .hero-ambient { opacity: 0; }
 .hero-ambient { transition: opacity 0.6s ease; }
+
+/* ---------- Accent words ----------
+   .hl marks the one run of words the eye should land on. It sits on the same
+   element the split-word rise animates (or on an <em> in the static markup),
+   so the mark travels with the word instead of being painted behind it.
+   Everything is drawn inside the word's own box — the rise masks clip
+   overflow, so an outside underline would be sheared off mid-travel. */
+.hl {
+  font-style: normal; /* the static markup uses <em> for no-JS semantics */
+  color: var(--accent);
+  /* Mid-run words carry their own trailing space so the mark reads unbroken;
+     inline-block would otherwise collapse it away. */
+  white-space: pre;
+}
+
+/* Headline: the serif carries the emphasis on its own, so the accent is just
+   colour — a rule or wash under 3rem type would read as a banner. */
+.hero h1 .hl { color: var(--accent); }
+
+/* Subhead: smaller type needs more than colour to register, so it also gets a
+   soft highlighter wash sitting on the baseline. */
+.hero-sub .hl {
+  font-weight: 600;
+  box-shadow: inset 0 -0.32em 0 var(--accent-soft);
+}
 
 /* Split-word rise: each word sits in an overflow mask and rises into view */
 .split-words .w { display: inline-block; overflow: hidden; vertical-align: bottom; }
@@ -1213,14 +1259,23 @@ html.is-loading .tabs-rail { opacity: 0; transition: none; }
        sub and the store buttons. It scales with the viewport because the type
        does, and it stops where the type's own clamps do. Everything the phone
        is allowed to take is what is left after this. */
-    --copy-block: min(calc(30vw + 95px), 258px);
+    --copy-block: min(calc(62vw + 42px), 330px);
   }
+  /* Both rows take only what they need and the pair is pushed to the bottom,
+     so the slack lands above the copy rather than between it and the phone.
+     The sentence, the two buttons and the screen they are about read as one
+     stack sitting on the bottom edge — with the copy pinned to the top the
+     slack opened up in the middle and the two halves stopped relating. */
   .hero-inner {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: auto auto;
+    align-content: end;
     align-items: start;
-    text-align: left;
-    gap: 14px;
+    /* Centred: at this size the headline is the whole top of the screen, and
+       ragging it left left a wedge of dead space beside it. Centring also puts
+       the copy on the phone's own axis, so the two read as one column. */
+    text-align: center;
+    gap: 18px;
   }
   /* Every point the copy gives up here goes straight into the phone, which is
      the thing the screen is actually selling.
@@ -1230,18 +1285,26 @@ html.is-loading .tabs-rail { opacity: 0; transition: none; }
      lines on every phone. The block below it is sized off a fixed budget —
      that only holds if the copy above it is the same height everywhere, and a
      px max-width would flip a line on and off between 360 and 390. */
-  .hero h1 { font-size: clamp(2.2rem, 9.4vw, 3.4rem); max-width: 7.6em; }
+  .hero h1 {
+    font-size: clamp(3.7rem, 15.6vw, 5.55rem);
+    /* Widened with the type: at 7.6em the bigger headline broke "better" and
+       "smarter" onto a line of their own, which put the accent word on a
+       ragged orphan line rather than closing the phrase. */
+    max-width: 9.5em;
+    margin-inline: auto;
+  }
   .hero-sub {
-    margin-top: 12px;
-    font-size: clamp(0.95rem, 4.3vw, 1.15rem);
-    max-width: 21em;
+    margin-top: 14px;
+    font-size: clamp(1.43rem, 6.45vw, 1.73rem);
+    max-width: 15em;
+    margin-inline: auto;
   }
   /* The elaboration would push the phone off the bottom of the one screen this
      beat gets; the sides and features sections carry it further down. */
   .hero-detail { display: none; }
   /* The stores sit between the copy and the phone: the sentence, then the two
      ways to act on it, then the thing itself. */
-  .hero-ctas { margin-top: 18px; gap: 10px; }
+  .hero-ctas { margin-top: 18px; gap: 10px; justify-content: center; }
   .hero-ctas .btn-store { flex: 1 1 0; justify-content: center; padding: 9px 12px; }
   .hero-ctas .btn-store svg { width: 21px; height: 21px; }
   .hero-ctas .btn-store span { font-size: 0.86rem; }
@@ -1252,10 +1315,10 @@ html.is-loading .tabs-rail { opacity: 0; transition: none; }
      copy, the toggle and the padding do not need. 0.46 turns the height it
      can have into the width it may be (the screen's 1206/2622 ratio), and the
      116px is the toggle, the two paddings and ~20px of air under the buttons.
-     The +4px is deliberately shy of the frame's own 10px of bezel, so the
+     The +2px is deliberately shy of the frame's own 5px of bezel, so the
      phone always lands a little inside its allowance rather than on it. */
   .hero-device .device {
-    width: max(120px, min(300px, 74vw, calc((100svh - var(--copy-block) - 116px) * 0.46 + 4px)));
+    width: max(120px, min(300px, 74vw, calc((100svh - var(--copy-block) - 116px) * 0.46 + 2px)));
   }
 
   .sides-columns { grid-template-columns: 1fr; }
@@ -1271,7 +1334,7 @@ html.is-loading .tabs-rail { opacity: 0; transition: none; }
     padding: 10px 0;
     background: var(--paper);
   }
-  .pinned-device .device { width: min(160px, 42vw, calc(40svh * 0.46)); border-radius: 30px; padding: 7px; }
+  .pinned-device .device { width: min(160px, 42vw, calc(40svh * 0.46)); border-radius: 28px; padding: 4px; }
   .pinned-device .device-screen { border-radius: 24px; }
   /* Copy sits low in each beat so it clears the pinned phone above it */
   .beat {
