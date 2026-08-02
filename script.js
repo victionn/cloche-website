@@ -93,29 +93,39 @@
 
   function splitWords(el, text, baseDelay) {
     var words = String(text).trim().split(/\s+/);
-    // Each accented word carries .hl itself — the mark has to ride the same
-    // per-word mask as the rise, so it can't wrap the run in one element.
     var phrase = el.dataset.hl || '';
     var hlLen = phrase ? phrase.trim().split(/\s+/).length : 0;
     var hlAt = accentStart(words, phrase);
+
+    /* One mask per word, except the accent run, which takes a single mask for
+       the whole phrase. Split across masks each word is its own inline-block,
+       so the accent rule is painted per box and the boxes' edges don't line up
+       once they round to device pixels — a hairline seam shows in the rule at
+       the space. One box, one unbroken rule. It also holds the phrase together
+       across a line break, which is what you want of the words being pointed
+       at anyway. */
+    var units = [];
+    for (var u = 0; u < words.length; u++) {
+      if (u === hlAt) {
+        units.push({ text: words.slice(hlAt, hlAt + hlLen).join(' '), hl: true });
+        u += hlLen - 1;
+      } else {
+        units.push({ text: words[u], hl: false });
+      }
+    }
+
     el.textContent = '';
-    words.forEach(function (word, i) {
-      var lit = hlAt >= 0 && i >= hlAt && i < hlAt + hlLen;
-      // Inside a multi-word run the space has to be carried by the word itself,
-      // as a non-breaking one so inline-block doesn't collapse it. Left as the
-      // text node between masks it falls outside the accent's box and the wash
-      // comes out as one bar per word instead of a single unbroken mark.
-      var joined = lit && i < hlAt + hlLen - 1;
+    units.forEach(function (unit, i) {
       var mask = document.createElement('span');
       mask.className = 'w';
       var inner = document.createElement('span');
       inner.className = 'wi';
-      if (lit) inner.classList.add('hl');
-      inner.textContent = joined ? word + ' ' : word;
+      if (unit.hl) inner.classList.add('hl');
+      inner.textContent = unit.text;
       inner.style.setProperty('--d', (baseDelay + i * 0.07) + 's');
       mask.appendChild(inner);
       el.appendChild(mask);
-      if (!joined) el.appendChild(document.createTextNode(' '));
+      el.appendChild(document.createTextNode(' '));
     });
   }
 
@@ -149,13 +159,67 @@
     revealIO.observe(el);
   });
 
-  /* ---------- Marquee: clone the group once (hidden from AT) for a seamless -50% loop ---------- */
+  /* ---------- Marquee ----------
+     The loop is one group wide: the track slides left by exactly the width of
+     the first group and starts over, so the copy that arrives is the copy that
+     just left. Two things it has to get right, both of which showed as a jump
+     on a real phone rather than in any desktop browser:
+
+     - The distance is measured in whole pixels, not -50%. A percentage of a
+       max-content flex row lands on a fraction, iOS rounds the start and the
+       end of the loop differently, and the seam shows up as a jerk once a
+       cycle.
+     - There have to be enough copies to cover the screen AND the group that
+       is sliding off it — n * W >= viewport + W. Six roles is a narrower
+       group than the nine it replaced, so on a wide screen two copies left a
+       hole; the clone count is now whatever it takes, not a fixed one.
+
+     Speed is fixed in px/s and the duration derived from the width, so the
+     roles travel at the same pace whatever the type size or the copy count. */
 
   var track = document.getElementById('marquee-track');
-  var group = track.querySelector('.marquee-group');
-  var clone = group.cloneNode(true);
-  clone.setAttribute('aria-hidden', 'true');
-  track.appendChild(clone);
+  if (track) (function () {
+    var group = track.querySelector('.marquee-group');
+    var SPEED = 46; // px per second
+
+    function build() {
+      // Back to one group before measuring: the clones are what we are sizing
+      while (track.children.length > 1) track.removeChild(track.lastChild);
+
+      var width = group.getBoundingClientRect().width;
+      if (!width) return;
+
+      // Whole pixels: the seam is invisible only if the shift is exactly the
+      // width the next copy starts at, and layout rounds that to an integer.
+      var shift = Math.round(width);
+      var copies = Math.max(2, Math.ceil((innerWidth + shift) / shift));
+      for (var i = 1; i < copies; i++) {
+        var clone = group.cloneNode(true);
+        clone.setAttribute('aria-hidden', 'true');
+        track.appendChild(clone);
+      }
+
+      track.style.setProperty('--marquee-shift', -shift + 'px');
+      track.style.setProperty('--marquee-duration', (shift / SPEED).toFixed(2) + 's');
+    }
+
+    build();
+
+    /* Fonts land after first paint and change the group's width under the
+       loop, which is the other way the seam opens up. Rebuild once they are
+       in, and on a resize that actually changes the width (iOS fires resize
+       for the address bar collapsing, which must not restart the animation). */
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(build);
+
+    var lastWidth = innerWidth;
+    var resizeSettle = 0;
+    addEventListener('resize', function () {
+      if (innerWidth === lastWidth) return;
+      lastWidth = innerWidth;
+      clearTimeout(resizeSettle);
+      resizeSettle = setTimeout(build, 200);
+    });
+  })();
 
   /* ---------- Scroll gallery ----------
      The rail scrolls natively; this only adds the two arrows, drag-with-a-
@@ -279,6 +343,69 @@
       rail.addEventListener('pointerup', endDrag);
       rail.addEventListener('pointercancel', endDrag);
     }
+  }
+
+  /* ---------- Hero copy budget ----------
+     On phones the hero stacks and the device is sized off what the copy above
+     it does NOT take (see --copy-block in styles.css). The CSS value is an
+     estimate off the viewport width, and it has to be pessimistic enough to
+     cover the widest wrap — which left 60-80px of unused height on most
+     widths, and the phone paid for all of it. Measure the block instead and
+     hand the real number back, so every point the copy doesn't use goes to
+     the screenshot. The CSS estimate stays as the no-JS fallback.
+
+     Safe against a loop: --copy-block only feeds the device's width, and the
+     copy is a full-width row above it, so its own height can't be moved by
+     what this sets.
+
+     The budget is the taller of the two sides, not whatever is on screen. The
+     Work/Hire toggle rewrites the headline and the sub, and at some widths one
+     side wraps a line further than the other — budget only for the side in
+     view and the phone visibly jumps size mid-swap. So the other side's copy
+     is dropped into the real elements, measured, and put straight back — all
+     inside one task, so nothing is ever painted in the swapped state. */
+  var heroSection = document.querySelector('.hero');
+  var heroCopy = document.querySelector('.hero-copy');
+  if (heroSection && heroCopy) {
+    var copyBlockLast = -1;
+
+    /* Built through splitWords, not as plain text: each word is its own
+       inline-block mask, which wraps differently from a plain string — measure
+       the plain version and a side that actually takes an extra line looks
+       like it doesn't. */
+    function heroCopyAlt() {
+      var swapped = [];
+      heroCopy.querySelectorAll('[data-side-copy]').forEach(function (el) {
+        var isWork = el.textContent.trim() === (el.dataset.work || '').trim();
+        var alt = isWork ? el.dataset.hire : el.dataset.work;
+        if (!alt) return;
+        swapped.push([el, el.innerHTML, el.dataset.hl || '']);
+        el.dataset.hl = (isWork ? el.dataset.hireHl : el.dataset.workHl) || '';
+        splitWords(el, alt, 0);
+      });
+      var h = heroCopy.getBoundingClientRect().height;
+      swapped.forEach(function (s) { s[0].innerHTML = s[1]; s[0].dataset.hl = s[2]; });
+      return h;
+    }
+
+    /* Always the current layout, never a running maximum: styles.css loads
+       async, so the first reading here can be of an unstyled block several
+       times too tall, and a high-water mark would keep that forever. */
+    function heroCopyBlock() {
+      var h = Math.ceil(Math.max(heroCopy.getBoundingClientRect().height, heroCopyAlt()));
+      if (!h || h === copyBlockLast) return;
+      copyBlockLast = h;
+      heroSection.style.setProperty('--copy-block', h + 'px');
+    }
+
+    if (window.ResizeObserver) new ResizeObserver(heroCopyBlock).observe(heroCopy);
+    else addEventListener('resize', heroCopyBlock);
+    addEventListener('load', heroCopyBlock);
+    /* The font swap is the one change the observer can miss: it can move the
+       side that ISN'T on screen across a wrap without touching the height of
+       the side that is, so nothing resizes and no notification arrives. */
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(heroCopyBlock);
+    heroCopyBlock();
   }
 
   /* ---------- Hero side toggle ----------
@@ -488,7 +615,6 @@
   if (mapSection) {
     var mapStage = document.getElementById('map-stage');
     var mapTitles = document.getElementById('map-titles');
-    var mapChip = document.getElementById('map-chip');
     var chipJobs = document.getElementById('map-chip-jobs');
     var chipSuburbs = document.getElementById('map-chip-suburbs');
 
@@ -560,24 +686,83 @@
       return { jobs: p[2], fall: el.firstChild, lastT: -1 };
     });
 
-    /* Frame the map. Portrait viewports cover edge-to-edge like the app and
-       this is a no-op (the clamp pins the offset to 0). Landscape viewports
-       would otherwise centre-crop an image ~2.4x their height and lose the
-       top rows of pins — so slide the stage until the pin band's centre
-       (34.5% down the image, the transform-origin above) sits just below the
-       viewport's middle, clamped so an edge never pulls into view. */
+    /* ---- Framing ----
+       The base image is the whole Sydney basin, but the pins only occupy a
+       band through its middle; shown whole it reads as a lot of empty
+       outskirts. So the frame is derived from the pins rather than the image:
+       zoom until the pin band covers the viewport on both axes, and pan so the
+       busiest pin (the CBD's 37) sits dead centre.
+
+       All of it is in px against the stage's own untransformed box, which
+       CSS puts at x ∈ [vw/2, vw/2 + W], y ∈ [0, H] — hence the transform-origin
+       of 0 0 and the -vw/2 that used to be `translateX(-50%)`. */
+
+    // The busiest pin's tip, and how far its body rises above that tip.
+    var ANCHOR = PIN_DATA.reduce(function (a, b) { return b[2] > a[2] ? b : a; });
+    var PIN_W_MAX = 0.08;              // widest pin, as a fraction of stage width
+    var PIN_H_MAX = PIN_W_MAX * 84 / 64; // its svg is 64 x 84
+
+    /* The pins' bounding box, padded by the pin artwork itself: a pin is drawn
+       centred on its tip horizontally and entirely above it vertically. */
+    var pinMinX = Infinity, pinMaxX = -Infinity, pinMinY = Infinity, pinMaxY = -Infinity;
+    PIN_DATA.forEach(function (p) {
+      pinMinX = Math.min(pinMinX, p[0] / 100);
+      pinMaxX = Math.max(pinMaxX, p[0] / 100);
+      pinMinY = Math.min(pinMinY, p[1] / 100);
+      pinMaxY = Math.max(pinMaxY, p[1] / 100);
+    });
+
+    /* The stage's layout size ignores its own transform, so it only changes on
+       resize — measured there rather than inside the per-frame scrub, which
+       would otherwise force a reflow every animation frame. Height comes from
+       the base image's ratio rather than offsetHeight: before the image has
+       loaded the element's aspect-ratio hasn't settled and offsetHeight reads
+       far too tall, which would poison the cache for the rest of the page. */
+    var stageW = 0, stageH = 0;
+    function mapMeasure() {
+      stageW = mapStage.offsetWidth;
+      stageH = stageW * 1720 / 1206;
+    }
+    mapMeasure();
+    addEventListener('load', function () { mapMeasure(); });
+
     function mapFrame(zoom) {
-      var h = mapStage.offsetHeight;
-      var o = Math.min(0, Math.max(innerHeight - h, innerHeight * 0.53 - 0.39 * h));
+      var W = stageW, H = stageH;
+      var vw = innerWidth, vh = innerHeight;
+
+      var bandW = (pinMaxX - pinMinX) * W + PIN_W_MAX * W;
+      var bandH = (pinMaxY - pinMinY) * H + PIN_H_MAX * W;
+
+      /* Cover the viewport with the band. Capped so that on a narrow phone —
+         where the band is only ~40% of a tall stage — the zoom stops before a
+         single pin eats a third of the screen; a sliver of pin-free map at the
+         very top and bottom sits under the title and chip scrims anyway. */
+      var s = Math.max(vw / bandW, vh / bandH, 1);
+      s = Math.min(s, 0.26 * vw / (PIN_W_MAX * W));
+
+      /* Then back off half of it. Filling the frame edge to edge with the band
+         crops too much of the map away and reads as a wall of pins, so only
+         half the zoom-in is taken. 1 is the floor either way — below it the
+         image no longer covers the viewport and the page shows past its edge. */
+      s = (1 + (s - 1) * 0.5) * zoom;
+
+      // Centre on the anchor pin's body, not its tip, so the pin looks centred
+      var ax = ANCHOR[0] / 100 * W;
+      var ay = ANCHOR[1] / 100 * H - 0.45 * PIN_H_MAX * W;
+
+      // Then clamp so an edge of the image never pulls in off the viewport
+      var tx = Math.max(vw / 2 - s * W, Math.min(-vw / 2, -s * ax));
+      var ty = Math.max(vh - s * H, Math.min(0, vh / 2 - s * ay));
+
       mapStage.style.transform =
-        'translateX(-50%) translateY(' + o + 'px) scale(' + zoom + ')';
+        'translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px) scale(' + s.toFixed(4) + ')';
     }
 
     if (reduceMotion) {
       // Static finished state: pins land by default, the chip just shows.
-      mapChip.classList.add('is-on');
       mapFrame(1);
-      addEventListener('resize', function () { mapFrame(1); });
+      addEventListener('load', function () { mapFrame(1); });
+      addEventListener('resize', function () { mapMeasure(); mapFrame(1); });
     } else {
       /* Each pin owns a slice of the scrub: [start, start + LAND] of section
          progress, staggered across the landing window. DROP is the fall
@@ -591,11 +776,11 @@
         pin.fall.style.opacity = '0';
         pin.fall.style.transform = 'translateY(-' + DROP + '%)';
       });
-      /* Hide the titles up front rather than waiting for the first scrub
-         frame: the observer fires a beat after the section starts intersecting,
-         and until then the CSS default would show them fully formed — exactly
-         the state they are supposed to arrive at. */
-      mapTitles.style.opacity = '0';
+      /* The titles are never scrubbed: they stay pinned visible for the whole
+         section (as does the chip, in CSS) so the map reads as labelled
+         however the reader arrives at it or scrubs through it. */
+      mapTitles.style.opacity = '1';
+      mapTitles.style.transform = 'none';
 
       var easeOutCubic = function (t) { return 1 - Math.pow(1 - t, 3); };
 
@@ -603,15 +788,6 @@
       function mapApply(p) {
         // Slight settle-out of an opening zoom gives the map itself a drift
         mapFrame(1.05 - 0.05 * easeOutCubic(p));
-
-        /* The map arrives bare for a beat, then the titles rise in as the
-           first pins start landing — early enough that the section reads as
-           labelled almost immediately, and they hold for the rest of the
-           scrub. The track is only ~55svh, so a window this short is still
-           several hundred pixels of scrolling. */
-        var titleIn = Math.max(0, Math.min(1, (p - 0.04) / 0.16));
-        mapTitles.style.opacity = titleIn.toFixed(3);
-        mapTitles.style.transform = 'translateY(' + ((1 - titleIn) * 18).toFixed(1) + 'px)';
 
         var landedJobs = 0, landedPins = 0;
         mapPins.forEach(function (pin) {
@@ -625,7 +801,6 @@
           pin.fall.style.opacity = Math.min(1, t / 0.22).toFixed(3);
         });
 
-        mapChip.classList.toggle('is-on', p > 0.04);
         chipJobs.textContent = Math.round(JOBS_TOTAL * landedJobs / visibleSum);
         chipSuburbs.textContent = Math.round(SUBURBS_TOTAL * landedPins / mapPins.length);
       }
@@ -641,11 +816,13 @@
       }
       var mapIO = new IntersectionObserver(function (entries) {
         mapActive = entries[0].isIntersecting;
-        if (mapActive) requestAnimationFrame(mapScrub);
+        // Re-measure on the way in: a scrollbar appearing, or the loading
+        // overlay releasing, changes the stage's width after the first read
+        if (mapActive) { mapMeasure(); mapLastP = -1; requestAnimationFrame(mapScrub); }
       });
       mapIO.observe(mapSection);
       // A resize moves the framing even at the same scroll position
-      addEventListener('resize', function () { mapLastP = -1; });
+      addEventListener('resize', function () { mapMeasure(); mapLastP = -1; });
     }
   }
 

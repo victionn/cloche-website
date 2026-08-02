@@ -432,8 +432,8 @@
               data-work="Work better" data-work-hl="better"
               data-hire="Hire smarter" data-hire-hl="smarter">Work <em class="hl">better</em></h1>
           <p class="hero-sub split-words" data-side-copy data-hl="near you"
-             data-work="Discover open positions near you" data-work-hl="near you"
-             data-hire="Find suitable candidates instantly" data-hire-hl="instantly">Discover open positions <em class="hl">near you</em></p>
+             data-work="Discover new opportunities near you" data-work-hl="near you"
+             data-hire="Find suitable candidates instantly" data-hire-hl="instantly">Discover new opportunities <em class="hl">near you</em></p>
           <p class="hero-detail" data-reveal style="--d: 0.1s;">Cloche puts bars, cafes and restaurants in direct contact with the people who staff them. No recruiter in the middle. Post a shift, find a shift, sorted.</p>
           <div class="hero-ctas" data-reveal style="--d: 0.2s;">
             <a class="btn btn-store magnetic" href="#get">
@@ -482,20 +482,35 @@
       </div>
     </section>
 
-    <!-- ============ ROLE MARQUEE ============ -->
+    <!-- ============ ROLE MARQUEE ============
+         Six roles, each behind the same mark the app puts on its feed filter
+         chips (ROLE_ICON in the app's posts.ts): the cup, the glass, the
+         flame, the pair. Cook shares the chef's flame and FOH shares the
+         waiter's pair because the app's role_category buckets them together —
+         the marquee shows the app's taxonomy, not a second one invented here,
+         so a role reads the same on the site as it does in the feed. -->
     <section class="marquee" aria-label="Roles on Cloche">
       <!-- The group is cloned once in JS (aria-hidden) for a seamless -50% loop -->
       <div class="marquee-track" id="marquee-track">
         <div class="marquee-group">
-          <span>Bartender</span><span aria-hidden="true">·</span>
-          <span>Chef</span><span aria-hidden="true">·</span>
-          <span>Barista</span><span aria-hidden="true">·</span>
-          <span>Kitchen hand</span><span aria-hidden="true">·</span>
-          <span>Waiter / FOH</span><span aria-hidden="true">·</span>
-          <span>Glass collector</span><span aria-hidden="true">·</span>
-          <span>DJ</span><span aria-hidden="true">·</span>
-          <span>Manager</span><span aria-hidden="true">·</span>
-          <span>All-rounder</span><span aria-hidden="true">·</span>
+          <span class="role">
+            <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.6 4h12.1a.9.9 0 0 1 .9.9v5.7a5.6 5.6 0 0 1-5.6 5.6H9.2a5.6 5.6 0 0 1-5.6-5.6V4.9A.9.9 0 0 1 3.6 4Zm13.9 2.2h.8a2.9 2.9 0 0 1 0 5.8h-.8Zm-15 12.1h18.9a1 1 0 0 1 0 2H2.5a1 1 0 0 1 0-2Z"/></svg>
+            <span>Barista</span></span><span class="dot" aria-hidden="true">·</span>
+          <span class="role">
+            <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.9 2.6h10.2a.8.8 0 0 1 .8.9l-.6 5.1a5.4 5.4 0 0 1-4.3 4.7v6.4h3a1 1 0 0 1 0 2H8a1 1 0 0 1 0-2h3v-6.4a5.4 5.4 0 0 1-4.3-4.7l-.6-5.1a.8.8 0 0 1 .8-.9Z"/></svg>
+            <span>Bartender</span></span><span class="dot" aria-hidden="true">·</span>
+          <span class="role">
+            <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.6 1.2c-.2 2.3-1.2 3.6-2.7 5-2 1.9-4.4 3.6-4.4 7 0 3.6 2.6 6.3 6.1 6.3 3.4 0 6-2.6 6-6 0-1.5-.5-2.8-1.2-3.9-.4 1.3-1.2 2-2.1 2-1.2 0-2-1-2-2.6 0-2.8.4-5.3.3-7.8Z"/></svg>
+            <span>Chef</span></span><span class="dot" aria-hidden="true">·</span>
+          <span class="role">
+            <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.8 3.6a3.1 3.1 0 1 1 0 6.2 3.1 3.1 0 0 1 0-6.2Zm0 7.6c2.7 0 5 1.5 5 3.3v1.9h-4.5c.1-.4.1-.7.1-1.1 0-1.8-1-3.4-2.5-4.4.6-.1 1.2-.2 1.9-.2ZM9.3 3.2a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm0 8.6c3.2 0 6.2 1.7 6.2 3.8v3H3.1v-3c0-2.1 3-3.8 6.2-3.8Z"/></svg>
+            <span>Waiter</span></span><span class="dot" aria-hidden="true">·</span>
+          <span class="role">
+            <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.6 1.2c-.2 2.3-1.2 3.6-2.7 5-2 1.9-4.4 3.6-4.4 7 0 3.6 2.6 6.3 6.1 6.3 3.4 0 6-2.6 6-6 0-1.5-.5-2.8-1.2-3.9-.4 1.3-1.2 2-2.1 2-1.2 0-2-1-2-2.6 0-2.8.4-5.3.3-7.8Z"/></svg>
+            <span>Cook</span></span><span class="dot" aria-hidden="true">·</span>
+          <span class="role">
+            <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.8 3.6a3.1 3.1 0 1 1 0 6.2 3.1 3.1 0 0 1 0-6.2Zm0 7.6c2.7 0 5 1.5 5 3.3v1.9h-4.5c.1-.4.1-.7.1-1.1 0-1.8-1-3.4-2.5-4.4.6-.1 1.2-.2 1.9-.2ZM9.3 3.2a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm0 8.6c3.2 0 6.2 1.7 6.2 3.8v3H3.1v-3c0-2.1 3-3.8 6.2-3.8Z"/></svg>
+            <span>FOH</span></span><span class="dot" aria-hidden="true">·</span>
         </div>
       </div>
     </section>
@@ -517,14 +532,13 @@
         </div>
         <div class="map-scrim map-scrim-top" aria-hidden="true"></div>
         <div class="map-scrim map-scrim-bottom" aria-hidden="true"></div>
-        <!-- The wrapper's opacity is scrubbed IN by JS over the back half of
-             the pin shower, so the screen resolves into the words rather than
-             opening on them. The children keep the usual entrance reveal,
-             which is also what shows them under reduced motion. -->
+        <!-- The heading block is persistently visible: no entrance reveal and
+             no scrubbed opacity, so the map is labelled the moment the section
+             comes into view and stays labelled all the way through it. -->
         <div class="map-titles" id="map-titles">
-          <p class="kicker" data-reveal>The live map</p>
-          <h2 id="map-heading" data-reveal>Sydney, covered.</h2>
-          <p class="map-note" data-reveal>Suburb pins, sized and coloured by open jobs.</p>
+          <p class="kicker">The live map</p>
+          <h2 id="map-heading">Sydney, covered.</h2>
+          <p class="map-note">Suburb pins, sized and coloured by open jobs.</p>
         </div>
         <!-- The app's own "314 jobs · 48 suburbs" pill; counts up as pins land -->
         <div class="map-chip" id="map-chip" aria-hidden="true">

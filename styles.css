@@ -374,8 +374,13 @@ html.is-loading .hero-device .device-glow { opacity: 0; }
   gap: 20px;
 }
 .hero-device .device {
-  /* Never taller than the viewport allows (the toggle below needs room too) */
-  width: min(300px, 76vw, calc((100svh - 280px) * 0.52));
+  /* The screenshot is a 402pt phone screen, so the frame's width IS the scale
+     the app's own type renders at — at 300px it was drawn at about 0.75x and
+     the feed copy came out too small to read. The cap is the height the
+     viewport can spare (the toggle below needs room too); 380px is where the
+     screenshot stops gaining and just gets soft. On a ~860px-tall laptop the
+     height term still rules and nothing moves; anything taller grows. */
+  width: min(380px, 76vw, calc((100svh - 280px) * 0.52));
 }
 
 /* The loader hands over with the feed in its pulled-down pose; dropping
@@ -462,9 +467,6 @@ html.is-loading .hero-ambient { opacity: 0; }
 .hl {
   font-style: normal; /* the static markup uses <em> for no-JS semantics */
   color: var(--accent);
-  /* Mid-run words carry their own trailing space so the mark reads unbroken;
-     inline-block would otherwise collapse it away. */
-  white-space: pre;
 }
 
 /* Headline: the serif carries the emphasis on its own, so the accent is just
@@ -472,10 +474,25 @@ html.is-loading .hero-ambient { opacity: 0; }
 .hero h1 .hl { color: var(--accent); }
 
 /* Subhead: smaller type needs more than colour to register, so it also gets a
-   soft highlighter wash sitting on the baseline. */
+   rule under it.
+
+   Drawn with text-decoration, which hangs off the baseline. An inset shadow
+   (or a background wash) measures from the bottom of the box instead, and the
+   box here is the whole line box — at the body's 1.55 line-height that put the
+   bar a half-line clear of the descenders, reading as a stray rule under the
+   line rather than a mark on the words. skip-ink off so the y of "you" cuts
+   through it rather than punching a gap.
+
+   Drawn at full accent strength and hairline-thin: a drafting rule under the
+   words, not a highlighter behind them. Tinted down it just read as a smudge
+   at this size — the weight has to come from the line being exact, not soft. */
 .hero-sub .hl {
   font-weight: 600;
-  box-shadow: inset 0 -0.32em 0 var(--accent-soft);
+  text-decoration: underline;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 0.055em;
+  text-underline-offset: 0.2em;
+  text-decoration-skip-ink: none;
 }
 
 /* Split-word rise: each word sits in an overflow mask and rises into view */
@@ -505,12 +522,27 @@ html.is-loading .hero-ambient { opacity: 0; }
 /* ---------- Marquee ---------- */
 
 .marquee {
+  position: relative;
   overflow: hidden;
   border-block: 1px solid var(--line);
   padding: 18px 0;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
 }
+/* The edges fade with two gradients painted over the track, not with a mask
+   on it. A mask has to be re-rasterised against moving content every frame,
+   which on iOS is what turned a steady slide into a stutter — these are two
+   static layers the compositor can leave alone. */
+.marquee::before,
+.marquee::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 12%;
+  z-index: 1;
+  pointer-events: none;
+}
+.marquee::before { left: 0; background: linear-gradient(90deg, var(--paper), transparent); }
+.marquee::after { right: 0; background: linear-gradient(270deg, var(--paper), transparent); }
 .marquee-track {
   display: flex;
   width: max-content;
@@ -519,11 +551,35 @@ html.is-loading .hero-ambient { opacity: 0; }
   font-weight: 600;
   font-size: 1.05rem;
   white-space: nowrap;
-  animation: marquee 36s linear infinite;
+  /* Both set by script.js off the measured group width — the fallbacks only
+     ever run with JS off, where there is a single group and nothing to loop */
+  animation: marquee var(--marquee-duration, 30s) linear infinite;
+  /* Its own layer, held for the life of the animation: without it Safari
+     hands the track back to the main thread on every scroll and the loop
+     hitches where the scroll does. */
+  will-change: transform;
+  backface-visibility: hidden;
 }
 /* Two identical groups, each ending in its own gap, make -50% loop cleanly */
-.marquee-group { display: flex; gap: 40px; padding-right: 40px; }
-@keyframes marquee { to { transform: translateX(-50%); } }
+.marquee-group { display: flex; align-items: center; gap: 40px; padding-right: 40px; }
+/* Mark and label ride as one word, so the pair never breaks across the mask */
+.marquee .role { display: inline-flex; align-items: center; gap: 10px; }
+/* Sized off the text, not in px: the mark stays the weight of the word beside
+   it at every breakpoint. Nudged up a hair — the glyphs sit optically low
+   against a cap-height word. */
+.marquee .role-icon {
+  width: 1.05em;
+  height: 1.05em;
+  flex: none;
+  margin-top: -0.08em;
+  color: var(--accent);
+}
+/* Whole pixels, one group wide — see the note in script.js on why a -50% loop
+   seams on iOS. translate3d, so the whole cycle stays on the compositor. */
+@keyframes marquee {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(var(--marquee-shift, 0px), 0, 0); }
+}
 
 /* ---------- Scroll gallery ---------- */
 
@@ -700,11 +756,11 @@ html.js .gallery-nav { display: flex; }
   width: max(100vw, calc(100vh * 0.7012)); /* svh fallback for older Safari */
   width: max(100vw, calc(100svh * 0.7012));
   aspect-ratio: 1206 / 1720;
+  /* JS owns the whole transform — zoom and pan are solved together in px
+     against this box, so the origin has to be its top-left corner and the
+     usual translateX(-50%) is folded into that maths. */
   transform: translateX(-50%);
-  /* The pin band's centre on the image. JS keeps this point mid-viewport on
-     short, wide screens (the image is far taller than a landscape viewport),
-     and the zoom pivots on it so the anchor never drifts. */
-  transform-origin: 50% 39%;
+  transform-origin: 0 0;
   will-change: transform;
 }
 
@@ -788,7 +844,7 @@ html.js .gallery-nav { display: flex; }
   position: absolute;
   left: 50%;
   bottom: max(30px, 6svh);
-  transform: translate(-50%, 12px);
+  transform: translate(-50%, 0);
   display: inline-flex;
   align-items: center;
   gap: 9px;
@@ -802,11 +858,8 @@ html.js .gallery-nav { display: flex; }
   font-size: 0.98rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  opacity: 0;
-  transition: opacity 0.4s ease, transform 0.4s var(--ease-out);
   z-index: 6;
 }
-.map-chip.is-on { opacity: 1; transform: translate(-50%, 0); }
 .map-chip b { font-weight: 700; }
 .map-chip-dot {
   width: 8px;
@@ -1194,7 +1247,6 @@ html.is-loading .tabs-rail { opacity: 0; transition: none; }
      state — the drop is only ever applied inline by JS) */
   .mapscroll { height: auto; }
   .map-sticky { position: static; }
-  .map-chip { opacity: 1; transform: translate(-50%, 0); transition: none; }
 }
 
 /* ---------- Responsive ---------- */
@@ -1250,11 +1302,19 @@ html.is-loading .tabs-rail { opacity: 0; transition: none; }
      The loader zoom and the ambient light both measure the device every time
      they run, so both follow it down here with no extra wiring. */
   .hero {
-    min-height: 100svh;
+    /* iOS Safari's floating address bar hovers over the bottom of the page and
+       svh does not subtract it, so whatever sits on the fold is behind it — on
+       a real phone the bar cut the roles marquee in half. The hero gives up
+       this strip so the marquee lands above the bar instead of under it, and
+       the slack it loses comes off the top, where the headline had air to
+       spare. Padding could not do this: the hero is a full svh tall either
+       way, so only its height moves what follows it up. */
+    --hero-lift: 88px;
+    min-height: calc(100svh - var(--hero-lift));
     align-items: stretch;
     /* Nothing is in the bar until the toggle docks into it, so the copy has
        the top of the screen to itself and starts right at it. */
-    padding: 28px 0 10px;
+    padding: 20px 0 10px;
     /* What the copy above the phone is about to measure — the headline, the
        sub and the store buttons. It scales with the viewport because the type
        does, and it stops where the type's own clamps do. Everything the phone
@@ -1314,11 +1374,13 @@ html.is-loading .tabs-rail { opacity: 0; transition: none; }
   /* The phone takes the whole of what the screen has left: everything the
      copy, the toggle and the padding do not need. 0.46 turns the height it
      can have into the width it may be (the screen's 1206/2622 ratio), and the
-     116px is the toggle, the two paddings and ~20px of air under the buttons.
+     112px is the toggle, the two paddings and ~20px of air under the buttons.
+     The lift comes off the same budget, so the strip the marquee shows in is
+     taken out of the phone rather than pushed off the bottom of the screen.
      The +2px is deliberately shy of the frame's own 5px of bezel, so the
      phone always lands a little inside its allowance rather than on it. */
   .hero-device .device {
-    width: max(120px, min(300px, 74vw, calc((100svh - var(--copy-block) - 116px) * 0.46 + 2px)));
+    width: max(120px, min(300px, 74vw, calc((100svh - var(--hero-lift) - var(--copy-block) - 112px) * 0.46 + 2px)));
   }
 
   .sides-columns { grid-template-columns: 1fr; }
