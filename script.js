@@ -170,9 +170,10 @@
        end of the loop differently, and the seam shows up as a jerk once a
        cycle.
      - There have to be enough copies to cover the screen AND the group that
-       is sliding off it — n * W >= viewport + W. Six roles is a narrower
-       group than the nine it replaced, so on a wide screen two copies left a
-       hole; the clone count is now whatever it takes, not a fixed one.
+       is sliding off it — n * W >= viewport + W. A shorter role list than the
+       nine this started with left a hole on a wide screen with two copies, so
+       the clone count is whatever it takes, not a fixed one — which is also
+       what lets roles be added or dropped without touching this.
 
      Speed is fixed in px/s and the duration derived from the width, so the
      roles travel at the same pace whatever the type size or the copy count. */
@@ -185,13 +186,19 @@
     function build() {
       // Back to one group before measuring: the clones are what we are sizing
       while (track.children.length > 1) track.removeChild(track.lastChild);
+      group.style.width = '';
 
       var width = group.getBoundingClientRect().width;
       if (!width) return;
 
-      // Whole pixels: the seam is invisible only if the shift is exactly the
-      // width the next copy starts at, and layout rounds that to an integer.
-      var shift = Math.round(width);
+      // The seam closes only if the distance travelled is exactly the distance
+      // to the next copy, so the group is pinned to the whole pixel the shift
+      // uses — measured, it lands on a fraction (961.81px), and the 0.19px it
+      // was short of the round number opened a hairline once a cycle. Ceil,
+      // never floor: the spare fraction goes into the group's trailing gap
+      // rather than squeezing its content.
+      var shift = Math.ceil(width);
+      group.style.width = shift + 'px';
       var copies = Math.max(2, Math.ceil((innerWidth + shift) / shift));
       for (var i = 1; i < copies; i++) {
         var clone = group.cloneNode(true);

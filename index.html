@@ -88,12 +88,12 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@600;700&family=Newsreader:opsz@6..72&display=swap" rel="stylesheet" media="print" onload="this.media='all'; this.onload=null;">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;1,600&family=Inter+Tight:wght@600;700&family=Newsreader:opsz@6..72&display=swap" rel="stylesheet" media="print" onload="this.media='all'; this.onload=null;">
 
   <!-- The loader's artwork is preloaded at the top of <head>, ahead of these -->
   <link rel="stylesheet" href="styles.css" media="print" onload="this.media='all'; this.onload=null;">
   <noscript>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@600;700&family=Newsreader:opsz@6..72&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;1,600&family=Inter+Tight:wght@600;700&family=Newsreader:opsz@6..72&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
   </noscript>
 </head>
@@ -415,12 +415,19 @@
 
   <main id="top">
 
-    <!-- ============ HERO ============ -->
-    <section class="hero" aria-labelledby="hero-heading">
-      <!-- Ambient light wash (script.js paints it; the canvas's own CSS
-           gradient is the no-JS / no-canvas fallback) -->
-      <canvas id="hero-ambient" class="hero-ambient" aria-hidden="true"></canvas>
+    <!-- ============ HERO ============
+         The stage is what the light fills: the hero AND the roles marquee
+         under it. The canvas sits on the pair rather than inside the hero, so
+         the radiance carries on past the toggle and the roles ride on it
+         instead of on a black band of their own. Everything about the wash is
+         measured off the canvas's own box, so widening its reach is this
+         wrapper and nothing else. -->
+    <div class="hero-stage">
+    <!-- Ambient light wash (script.js paints it; the canvas's own CSS
+         gradient is the no-JS / no-canvas fallback) -->
+    <canvas id="hero-ambient" class="hero-ambient" aria-hidden="true"></canvas>
 
+    <section class="hero" aria-labelledby="hero-heading">
       <div class="hero-inner">
         <div class="hero-copy">
           <!-- The headline is the third thing the side toggle drives, after the
@@ -483,12 +490,20 @@
     </section>
 
     <!-- ============ ROLE MARQUEE ============
-         Six roles, each behind the same mark the app puts on its feed filter
-         chips (ROLE_ICON in the app's posts.ts): the cup, the glass, the
-         flame, the pair. Cook shares the chef's flame and FOH shares the
-         waiter's pair because the app's role_category buckets them together —
-         the marquee shows the app's taxonomy, not a second one invented here,
-         so a role reads the same on the site as it does in the feed. -->
+         Eight roles, each behind the mark the app puts on its feed filter chips
+         (ROLE_ICON in the app's posts.ts): the cup, the glass, the pair, the
+         cutlery, the case, the shuffle. Cook shares the chef's mark because the
+         app's role_category buckets them together — the marquee shows the app's
+         taxonomy, not a second one invented here, so a role reads the same on
+         the site as it does in the feed.
+
+         The one departure is the chef's mark itself: the app draws that bucket
+         as a flame, which on a strip of job titles reads as heat rather than as
+         a kitchen. The toque says the same thing without the ambiguity.
+
+         Chef and Cook are set four apart — the furthest two of eight can be on
+         a loop — so the toque they share is never on screen twice at once. Any
+         role added or removed here should keep that spacing. -->
     <section class="marquee" aria-label="Roles on Cloche">
       <!-- The group is cloned once in JS (aria-hidden) for a seamless -50% loop -->
       <div class="marquee-track" id="marquee-track">
@@ -497,23 +512,32 @@
             <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.6 4h12.1a.9.9 0 0 1 .9.9v5.7a5.6 5.6 0 0 1-5.6 5.6H9.2a5.6 5.6 0 0 1-5.6-5.6V4.9A.9.9 0 0 1 3.6 4Zm13.9 2.2h.8a2.9 2.9 0 0 1 0 5.8h-.8Zm-15 12.1h18.9a1 1 0 0 1 0 2H2.5a1 1 0 0 1 0-2Z"/></svg>
             <span>Barista</span></span><span class="dot" aria-hidden="true">·</span>
           <span class="role">
+            <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.4a4.4 4.4 0 0 1 4.3 3.5 3.9 3.9 0 1 1 1.4 7.4v1.3H6.3v-1.3A3.9 3.9 0 1 1 7.7 5.9 4.4 4.4 0 0 1 12 2.4ZM6.3 15.8h11.4v3.5a1.4 1.4 0 0 1-1.4 1.4H7.7a1.4 1.4 0 0 1-1.4-1.4Z"/></svg>
+            <span>Chef</span></span><span class="dot" aria-hidden="true">·</span>
+          <span class="role">
             <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.9 2.6h10.2a.8.8 0 0 1 .8.9l-.6 5.1a5.4 5.4 0 0 1-4.3 4.7v6.4h3a1 1 0 0 1 0 2H8a1 1 0 0 1 0-2h3v-6.4a5.4 5.4 0 0 1-4.3-4.7l-.6-5.1a.8.8 0 0 1 .8-.9Z"/></svg>
             <span>Bartender</span></span><span class="dot" aria-hidden="true">·</span>
           <span class="role">
-            <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.6 1.2c-.2 2.3-1.2 3.6-2.7 5-2 1.9-4.4 3.6-4.4 7 0 3.6 2.6 6.3 6.1 6.3 3.4 0 6-2.6 6-6 0-1.5-.5-2.8-1.2-3.9-.4 1.3-1.2 2-2.1 2-1.2 0-2-1-2-2.6 0-2.8.4-5.3.3-7.8Z"/></svg>
-            <span>Chef</span></span><span class="dot" aria-hidden="true">·</span>
-          <span class="role">
             <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.8 3.6a3.1 3.1 0 1 1 0 6.2 3.1 3.1 0 0 1 0-6.2Zm0 7.6c2.7 0 5 1.5 5 3.3v1.9h-4.5c.1-.4.1-.7.1-1.1 0-1.8-1-3.4-2.5-4.4.6-.1 1.2-.2 1.9-.2ZM9.3 3.2a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm0 8.6c3.2 0 6.2 1.7 6.2 3.8v3H3.1v-3c0-2.1 3-3.8 6.2-3.8Z"/></svg>
             <span>Waiter</span></span><span class="dot" aria-hidden="true">·</span>
+          <!-- The app's case, its fork-and-knife and its shuffle: manager,
+               kitchen hand and the all-rounder who moves between stations. -->
           <span class="role">
-            <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.6 1.2c-.2 2.3-1.2 3.6-2.7 5-2 1.9-4.4 3.6-4.4 7 0 3.6 2.6 6.3 6.1 6.3 3.4 0 6-2.6 6-6 0-1.5-.5-2.8-1.2-3.9-.4 1.3-1.2 2-2.1 2-1.2 0-2-1-2-2.6 0-2.8.4-5.3.3-7.8Z"/></svg>
+            <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 6h-4V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2Zm-6 0h-4V4h4v2Z"/></svg>
+            <span>Manager</span></span><span class="dot" aria-hidden="true">·</span>
+          <span class="role">
+            <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.4a4.4 4.4 0 0 1 4.3 3.5 3.9 3.9 0 1 1 1.4 7.4v1.3H6.3v-1.3A3.9 3.9 0 1 1 7.7 5.9 4.4 4.4 0 0 1 12 2.4ZM6.3 15.8h11.4v3.5a1.4 1.4 0 0 1-1.4 1.4H7.7a1.4 1.4 0 0 1-1.4-1.4Z"/></svg>
             <span>Cook</span></span><span class="dot" aria-hidden="true">·</span>
           <span class="role">
-            <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.8 3.6a3.1 3.1 0 1 1 0 6.2 3.1 3.1 0 0 1 0-6.2Zm0 7.6c2.7 0 5 1.5 5 3.3v1.9h-4.5c.1-.4.1-.7.1-1.1 0-1.8-1-3.4-2.5-4.4.6-.1 1.2-.2 1.9-.2ZM9.3 3.2a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm0 8.6c3.2 0 6.2 1.7 6.2 3.8v3H3.1v-3c0-2.1 3-3.8 6.2-3.8Z"/></svg>
-            <span>FOH</span></span><span class="dot" aria-hidden="true">·</span>
+            <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7Zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4Z"/></svg>
+            <span>Kitchen hand</span></span><span class="dot" aria-hidden="true">·</span>
+          <span class="role">
+            <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10.59 9.17 5.41 4 4 5.41l5.17 5.17 1.42-1.41ZM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5Zm.33 9.41-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13Z"/></svg>
+            <span>All-rounder</span></span><span class="dot" aria-hidden="true">·</span>
         </div>
       </div>
     </section>
+    </div><!-- /.hero-stage -->
 
     <!-- ============ FULL-SCREEN MAP ============
          The app's suburb map, blown up to the whole viewport. The section is

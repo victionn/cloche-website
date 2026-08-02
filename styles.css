@@ -316,13 +316,21 @@ html.is-loading .hero-device .device-glow { opacity: 0; }
 
 /* ---------- Hero ---------- */
 
+/* What the ambient light fills: the hero and the roles marquee below it, as
+   one lit surface. The canvas is positioned against this, so the wash runs
+   past the toggle and the roles sit in it rather than on a band of their own.
+   It clips too — the device glows are meant to bleed off the edges. */
+.hero-stage {
+  position: relative;
+  overflow: hidden;
+}
+
 .hero {
   position: relative;
   min-height: 100svh;
   display: flex;
   align-items: center;
   padding: 130px 0 70px;
-  overflow: hidden;
 }
 
 .hero-inner {
@@ -473,26 +481,18 @@ html.is-loading .hero-ambient { opacity: 0; }
    colour — a rule or wash under 3rem type would read as a banner. */
 .hero h1 .hl { color: var(--accent); }
 
-/* Subhead: smaller type needs more than colour to register, so it also gets a
-   rule under it.
+/* Subhead: smaller type needs more than colour to register, so the accent run
+   is set in italic. It has to be a real italic — Inter is requested with the
+   ital axis in index.html — because a synthesised oblique is just the upright
+   sheared, and at this size that reads as a rendering fault rather than as
+   emphasis.
 
-   Drawn with text-decoration, which hangs off the baseline. An inset shadow
-   (or a background wash) measures from the bottom of the box instead, and the
-   box here is the whole line box — at the body's 1.55 line-height that put the
-   bar a half-line clear of the descenders, reading as a stray rule under the
-   line rather than a mark on the words. skip-ink off so the y of "you" cuts
-   through it rather than punching a gap.
-
-   Drawn at full accent strength and hairline-thin: a drafting rule under the
-   words, not a highlighter behind them. Tinted down it just read as a smudge
-   at this size — the weight has to come from the line being exact, not soft. */
+   Italic rather than the rule this used to carry: the mark now lives in the
+   letterforms instead of beside them, so it can't collide with the descenders
+   of "you" and it needs nothing measured off a baseline. */
 .hero-sub .hl {
   font-weight: 600;
-  text-decoration: underline;
-  text-decoration-color: currentColor;
-  text-decoration-thickness: 0.055em;
-  text-underline-offset: 0.2em;
-  text-decoration-skip-ink: none;
+  font-style: italic;
 }
 
 /* Split-word rise: each word sits in an overflow mask and rises into view */
@@ -521,28 +521,25 @@ html.is-loading .hero-ambient { opacity: 0; }
 
 /* ---------- Marquee ---------- */
 
+/* No fill of its own: it sits inside .hero-stage, so what is behind the roles
+   is the hero's light carrying on past the toggle. Only the bottom rule is
+   left — the top one would draw a line across a wash that is meant to read as
+   one surface, while the bottom still parts the roles from the map. */
 .marquee {
   position: relative;
-  overflow: hidden;
-  border-block: 1px solid var(--line);
-  padding: 18px 0;
-}
-/* The edges fade with two gradients painted over the track, not with a mask
-   on it. A mask has to be re-rasterised against moving content every frame,
-   which on iOS is what turned a steady slide into a stutter — these are two
-   static layers the compositor can leave alone. */
-.marquee::before,
-.marquee::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 12%;
+  /* Over the wash, not under it. The canvas is a positioned element, so it
+     otherwise paints on top of everything in the stage that isn't — which the
+     hero's big bright copy carries, but 17px of muted grey would not. */
   z-index: 1;
-  pointer-events: none;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  padding: 18px 0;
+  /* The fade has to take the roles away rather than cover them: anything
+     painted over the ends would be painted in --paper, which is the flat band
+     this section just stopped being. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
 }
-.marquee::before { left: 0; background: linear-gradient(90deg, var(--paper), transparent); }
-.marquee::after { right: 0; background: linear-gradient(270deg, var(--paper), transparent); }
 .marquee-track {
   display: flex;
   width: max-content;
