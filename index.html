@@ -15,14 +15,10 @@
   <title>Cloche — Every shift, covered.</title>
   <meta name="description" content="Cloche is the app where Australian hospitality venues and workers find each other directly. Every shift, covered.">
 
-  <!-- Set theme before first paint to avoid a flash of the wrong theme.
-       .is-loading arms the preloader (scroll lock, held reveals); it is only
+  <!-- .is-loading arms the preloader (scroll lock, held reveals); it is only
        ever added from JS, so a no-JS visit never sees a locked page. -->
   <script>
     (function () {
-      var t = localStorage.getItem('cloche-theme');
-      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      document.documentElement.dataset.theme = t;
       document.documentElement.classList.add('js', 'is-loading');
     })();
   </script>
@@ -47,10 +43,6 @@
       content: ""; position: absolute; inset: 0;
       background: #FFFFFF;
       transition: opacity 0.2s ease; /* 0.3s / 1.5 */
-    }
-    :root[data-theme="dark"] #loader::before { background: #000000; }
-    @media (prefers-color-scheme: dark) {
-      :root:not([data-theme]) #loader::before { background: #000000; }
     }
     #loader.is-clearing { pointer-events: none; }
     #loader.is-clearing::before { opacity: 0; }
@@ -389,10 +381,6 @@
       </nav>
 
       <div class="nav-actions">
-        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch colour theme">
-          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
-        </button>
         <a class="btn btn-primary btn-sm magnetic" href="#get">Get the app</a>
       </div>
     </div>
@@ -460,23 +448,14 @@
           <div class="device-glow" aria-hidden="true"></div>
           <div class="device">
             <div class="device-screen swap-screen">
-              <!-- The only eager image on the page, so it is the only one that
-                   the preload scanner reaches before script.js can pick a
-                   theme — which is why it is a <picture> and not a plain
-                   [data-dark-src] swap. Left as an <img>, a dark visitor
-                   downloaded the light screenshot and then the dark one on top
-                   of it. The <source> lets the scanner choose once, up front,
-                   and syncMedia() flips its media on an explicit toggle.
-                   No fetchpriority: it sits behind the overlay until the loader
-                   hands over, so it must not outrank the loader's own art. -->
-              <picture>
-                <source data-dark-source srcset="assets/01-feed-dark.png" media="(prefers-color-scheme: dark)">
-                <img class="swap-img is-active" role="tabpanel" id="hero-screen-work" aria-labelledby="tab-work"
-                     src="assets/01-feed.png" width="1206" height="2622"
-                     alt="Worker feed: a bartender job at The Tin Whistle in Newtown, with an AI summary line above the full ad and filter chips below.">
-              </picture>
+              <!-- The only eager image on the page. No fetchpriority: it sits
+                   behind the overlay until the loader hands over, so it must
+                   not outrank the loader's own art. -->
+              <img class="swap-img is-active" role="tabpanel" id="hero-screen-work" aria-labelledby="tab-work"
+                   src="assets/01-feed.png" width="1206" height="2622"
+                   alt="Worker feed: a bartender job at The Tin Whistle in Newtown, with an AI summary line above the full ad and filter chips below.">
               <img class="swap-img" role="tabpanel" id="hero-screen-hire" aria-labelledby="tab-hire"
-                   src="assets/10-venue-feed.png" data-dark-src="assets/10-venue-feed-dark.png" width="1206" height="2622" loading="lazy"
+                   src="assets/10-venue-feed.png" width="1206" height="2622" loading="lazy"
                    alt="Venue feed: workers posting their availability, each with an AI summary of their post.">
               <!-- The in-phone refresh beat that plays when the side flips -->
               <div class="screen-cloche" id="screen-cloche" aria-hidden="true"></div>
@@ -510,30 +489,30 @@
         <div class="marquee-group">
           <span class="role">
             <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.6 4h12.1a.9.9 0 0 1 .9.9v5.7a5.6 5.6 0 0 1-5.6 5.6H9.2a5.6 5.6 0 0 1-5.6-5.6V4.9A.9.9 0 0 1 3.6 4Zm13.9 2.2h.8a2.9 2.9 0 0 1 0 5.8h-.8Zm-15 12.1h18.9a1 1 0 0 1 0 2H2.5a1 1 0 0 1 0-2Z"/></svg>
-            <span>Barista</span></span><span class="dot" aria-hidden="true">·</span>
+            <span>Barista</span></span>
           <span class="role">
             <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.4a4.4 4.4 0 0 1 4.3 3.5 3.9 3.9 0 1 1 1.4 7.4v1.3H6.3v-1.3A3.9 3.9 0 1 1 7.7 5.9 4.4 4.4 0 0 1 12 2.4ZM6.3 15.8h11.4v3.5a1.4 1.4 0 0 1-1.4 1.4H7.7a1.4 1.4 0 0 1-1.4-1.4Z"/></svg>
-            <span>Chef</span></span><span class="dot" aria-hidden="true">·</span>
+            <span>Chef</span></span>
           <span class="role">
             <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.9 2.6h10.2a.8.8 0 0 1 .8.9l-.6 5.1a5.4 5.4 0 0 1-4.3 4.7v6.4h3a1 1 0 0 1 0 2H8a1 1 0 0 1 0-2h3v-6.4a5.4 5.4 0 0 1-4.3-4.7l-.6-5.1a.8.8 0 0 1 .8-.9Z"/></svg>
-            <span>Bartender</span></span><span class="dot" aria-hidden="true">·</span>
+            <span>Bartender</span></span>
           <span class="role">
             <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.8 3.6a3.1 3.1 0 1 1 0 6.2 3.1 3.1 0 0 1 0-6.2Zm0 7.6c2.7 0 5 1.5 5 3.3v1.9h-4.5c.1-.4.1-.7.1-1.1 0-1.8-1-3.4-2.5-4.4.6-.1 1.2-.2 1.9-.2ZM9.3 3.2a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm0 8.6c3.2 0 6.2 1.7 6.2 3.8v3H3.1v-3c0-2.1 3-3.8 6.2-3.8Z"/></svg>
-            <span>Waiter</span></span><span class="dot" aria-hidden="true">·</span>
+            <span>Waiter</span></span>
           <!-- The app's case, its fork-and-knife and its shuffle: manager,
                kitchen hand and the all-rounder who moves between stations. -->
           <span class="role">
             <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 6h-4V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2Zm-6 0h-4V4h4v2Z"/></svg>
-            <span>Manager</span></span><span class="dot" aria-hidden="true">·</span>
+            <span>Manager</span></span>
           <span class="role">
             <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.4a4.4 4.4 0 0 1 4.3 3.5 3.9 3.9 0 1 1 1.4 7.4v1.3H6.3v-1.3A3.9 3.9 0 1 1 7.7 5.9 4.4 4.4 0 0 1 12 2.4ZM6.3 15.8h11.4v3.5a1.4 1.4 0 0 1-1.4 1.4H7.7a1.4 1.4 0 0 1-1.4-1.4Z"/></svg>
-            <span>Cook</span></span><span class="dot" aria-hidden="true">·</span>
+            <span>Cook</span></span>
           <span class="role">
             <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7Zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4Z"/></svg>
-            <span>Kitchen hand</span></span><span class="dot" aria-hidden="true">·</span>
+            <span>Kitchen hand</span></span>
           <span class="role">
             <svg class="role-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10.59 9.17 5.41 4 4 5.41l5.17 5.17 1.42-1.41ZM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5Zm.33 9.41-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13Z"/></svg>
-            <span>All-rounder</span></span><span class="dot" aria-hidden="true">·</span>
+            <span>All-rounder</span></span>
         </div>
       </div>
     </section>
@@ -550,19 +529,17 @@
     <section class="mapscroll" id="map" aria-labelledby="map-heading">
       <div class="map-sticky">
         <div class="map-stage" id="map-stage" aria-hidden="true">
-          <img class="map-base" src="assets/map-base.png" data-dark-src="assets/map-base-dark.png"
+          <img class="map-base" src="assets/map-base.png"
                width="1206" height="1720" loading="lazy" alt="">
           <!-- pins injected by script.js -->
         </div>
-        <div class="map-scrim map-scrim-top" aria-hidden="true"></div>
         <div class="map-scrim map-scrim-bottom" aria-hidden="true"></div>
         <!-- The heading block is persistently visible: no entrance reveal and
              no scrubbed opacity, so the map is labelled the moment the section
              comes into view and stays labelled all the way through it. -->
         <div class="map-titles" id="map-titles">
-          <p class="kicker">The live map</p>
-          <h2 id="map-heading">Sydney, covered.</h2>
-          <p class="map-note">Suburb pins, sized and coloured by open jobs.</p>
+          <h2 id="map-heading">Browse local openings</h2>
+          <p class="map-note">Flexible work that suits you</p>
         </div>
         <!-- The app's own "314 jobs · 48 suburbs" pill; counts up as pins land -->
         <div class="map-chip" id="map-chip" aria-hidden="true">
@@ -581,88 +558,92 @@
     <section class="gallery section" id="gallery" aria-labelledby="gallery-heading">
       <div class="container">
         <p class="kicker" data-reveal>A look inside</p>
-        <h2 id="gallery-heading" data-reveal>Six screens, end to end.</h2>
+        <h2 id="gallery-heading" data-reveal>Three steps.</h2>
       </div>
 
       <div class="gallery-viewport" id="gallery-viewport" tabindex="0" role="group"
            aria-labelledby="gallery-heading" aria-describedby="gallery-hint" data-reveal>
         <ul class="gallery-track">
-          <li class="gallery-card">
+          <li class="gallery-card" data-side="hire">
             <div class="gallery-shot">
               <div class="gallery-phone">
                 <div class="device-screen">
-                  <img src="assets/01-feed.png" data-dark-src="assets/01-feed-dark.png" width="1206" height="2622" loading="lazy"
-                       alt="Worker feed ranking a bartender job at The Tin Whistle first, with an AI summary above the raw ad.">
+                  <img src="assets/step-1-post.png" width="1206" height="2622" loading="lazy"
+                       alt="The Make a hire composer: Waiter / FOH picked as the job type, set to casual, work rights required, with the front-of-house role description written out.">
                 </div>
               </div>
             </div>
-            <p class="gallery-caption"><b>Ranked feed.</b> The roles you picked always outrank the ones you didn't, and every listing carries a plain-English summary above the ad itself.</p>
-            <a class="gallery-link" href="#features">Learn more about the feed <span aria-hidden="true">›</span></a>
+            <p class="gallery-caption"><b>1. Post the role.</b> Job type, hours, visa requirements and a description in plain English. Written once, and it's in front of the workers nearby.</p>
           </li>
 
-          <li class="gallery-card">
+          <li class="gallery-card" data-side="hire">
             <div class="gallery-shot">
               <div class="gallery-phone">
                 <div class="device-screen">
-                  <img src="assets/02-map.png" data-dark-src="assets/02-map-dark.png" width="1206" height="2622" loading="lazy"
-                       alt="Map of Sydney with suburb pins sized and colour-graded by open job count — 314 jobs across 48 suburbs.">
+                  <img src="assets/step-2-applicants.png" width="1206" height="2622" loading="lazy"
+                       alt="Six applicants for the front-of-house role: Tahlia Brooks and Jack Nguyen, each with their experience, a note about themselves, an attached resume and a verified RSA.">
                 </div>
               </div>
             </div>
-            <p class="gallery-caption"><b>Suburb map.</b> Pins sized and coloured by how many jobs are open there. 314 of them across 48 Sydney suburbs, filterable by role.</p>
-            <a class="gallery-link" href="#numbers">See the numbers <span aria-hidden="true">›</span></a>
+            <p class="gallery-caption"><b>2. Read who applied.</b> Every applicant in one list, with their experience, their own note, and the resume and certificates already attached.</p>
           </li>
 
-          <li class="gallery-card">
+          <li class="gallery-card" data-side="hire">
             <div class="gallery-shot">
               <div class="gallery-phone">
                 <div class="device-screen">
-                  <img src="assets/05-profile-certs.png" data-dark-src="assets/05-profile-certs-dark.png" width="1206" height="2622" loading="lazy"
-                       alt="Worker profile listing RSA, RCG and Food Safety Supervisor certifications, each with a green Verified badge.">
+                  <img src="assets/step-3-message.png" width="1206" height="2622" loading="lazy"
+                       alt="A conversation with applicant Tahlia Brooks: her application for Front of House at The Copper Still in Newtown sits at the top of the thread with her resume and RSA attached, followed by a reply asking her in for a trial shift this week.">
                 </div>
               </div>
             </div>
-            <p class="gallery-caption"><b>Verified certs.</b> Upload your RSA, RCG and Food Safety once. Cloche verifies them, tracks the expiry, and venues see the green badge — not a photo of a card.</p>
-            <a class="gallery-link" href="#features">Learn more about verification <span aria-hidden="true">›</span></a>
+            <p class="gallery-caption"><b>3. Message them directly.</b> Offer a trial in the same thread the application arrived in. No agency in the middle, no phone tag.</p>
           </li>
 
-          <li class="gallery-card">
+          <li class="gallery-card" data-side="work" hidden>
             <div class="gallery-shot">
               <div class="gallery-phone">
-                <div class="device-screen">
-                  <img src="assets/10-venue-feed.png" data-dark-src="assets/10-venue-feed-dark.png" width="1206" height="2622" loading="lazy"
-                       alt="Venue feed: workers posting their availability, each with an AI summary of their post.">
+                <!-- Two shots sharing one screen. Each is drawn at full screen width
+                     inside a half-width window, so neither is squashed — the modifier
+                     picks which half of each shot the window lands on: the map's busy
+                     right side, and the feed's left side where the text starts. -->
+                <div class="device-screen device-split">
+                  <div class="split-half show-right">
+                    <img src="assets/work-step-1-map.png" width="1206" height="2622" loading="lazy"
+                         alt="The same jobs on a map of Sydney — 374 jobs across 67 suburbs as counted pins, clustered thickest over the inner city, with filters for Chef, Waiter / FOH and Barista.">
+                  </div>
+                  <div class="split-half show-left">
+                    <img src="assets/work-step-1-feed.png" width="1206" height="2622" loading="lazy"
+                         alt="The job feed: a part-time Cook role in Surry Hills and a Barista all-rounder in Castle Hill, each posted from Facebook with an AI summary of the hours, experience and start date.">
+                  </div>
                 </div>
               </div>
             </div>
-            <p class="gallery-caption"><b>The other side.</b> Flip the account and the same feed shows workers posting their availability nearby, summarised the same way.</p>
-            <a class="gallery-link" href="#sides">See both sides <span aria-hidden="true">›</span></a>
+            <p class="gallery-caption"><b>1. See what's open nearby.</b> Every hospitality job around you in one feed — or on the map, by suburb. Each one summarised so you know the hours and the ask at a glance.</p>
           </li>
 
-          <li class="gallery-card">
+          <li class="gallery-card" data-side="work" hidden>
             <div class="gallery-shot">
               <div class="gallery-phone">
                 <div class="device-screen">
-                  <img src="assets/12-venue-messages.png" data-dark-src="assets/12-venue-messages-dark.png" width="1206" height="2622" loading="lazy"
-                       alt="Venue messages screen showing a hired bartender for The Copper Still in Surry Hills.">
+                  <img src="assets/work-step-2-apply.png" width="1206" height="2622" loading="lazy"
+                       alt="Applying for Front of House at The Copper Still in Newtown: the resume and RSA certificate autofilled from Tahlia Brooks' profile, with a short message to the hirer above the Submit application button.">
                 </div>
               </div>
             </div>
-            <p class="gallery-caption"><b>Direct messages.</b> Workers and venues talk to each other, not to an agency. The application, the hire and the conversation stay in one thread.</p>
-            <a class="gallery-link" href="#sides">How hiring works <span aria-hidden="true">›</span></a>
+            <p class="gallery-caption"><b>2. Apply in one tap.</b> Your resume and certificates come straight from your profile — add a line about yourself and send it.</p>
           </li>
 
-          <li class="gallery-card">
+          <li class="gallery-card" data-side="work" hidden>
             <div class="gallery-shot">
               <div class="gallery-phone">
                 <div class="device-screen">
-                  <img src="assets/15-pull-refresh.png" data-dark-src="assets/15-pull-refresh-dark.png" width="1206" height="2622" loading="lazy"
-                       alt="The feed pulled down, revealing a green cloche lifting off a plate.">
+                  <img src="assets/work-step-3-reply.png" width="1206" height="2622" loading="lazy"
+                       alt="The thread with The Copper Still from the worker's side: the sent application with its resume and RSA at the top, the venue asking Tahlia in for a trial shift, and her reply offering Wednesday to Friday being typed.">
                 </div>
               </div>
             </div>
-            <p class="gallery-caption"><b>Pull to refresh.</b> The app is named after the serving dome. Pull the feed down and it lifts off the plate — that's the whole feature.</p>
-            <a class="gallery-link" href="#delight">Watch it lift <span aria-hidden="true">›</span></a>
+            <p class="gallery-caption"><b>3. Hear back in the same thread.</b> The venue messages you where you applied — sort out a trial shift with them directly.</p>
           </li>
         </ul>
       </div>
@@ -729,13 +710,13 @@
           <div class="device-glow" aria-hidden="true"></div>
           <div class="device">
             <div class="device-screen">
-              <img class="beat-img is-active" data-beat="0" src="assets/01-feed.png" data-dark-src="assets/01-feed-dark.png" width="1206" height="2622" loading="lazy"
+              <img class="beat-img is-active" data-beat="0" src="assets/01-feed.png" width="1206" height="2622" loading="lazy"
                    alt="Worker feed ranking a bartender job first, with an AI summary above the raw ad.">
-              <img class="beat-img" data-beat="1" src="assets/02-map.png" data-dark-src="assets/02-map-dark.png" width="1206" height="2622" loading="lazy"
+              <img class="beat-img" data-beat="1" src="assets/02-map.png" width="1206" height="2622" loading="lazy"
                    alt="Map of Sydney with suburb pins sized and colour-graded by open job count — 314 jobs across 48 suburbs.">
-              <img class="beat-img" data-beat="2" src="assets/05-profile-certs.png" data-dark-src="assets/05-profile-certs-dark.png" width="1206" height="2622" loading="lazy"
+              <img class="beat-img" data-beat="2" src="assets/05-profile-certs.png" width="1206" height="2622" loading="lazy"
                    alt="Worker profile listing RSA, RCG and Food Safety Supervisor certifications, each with a green Verified badge.">
-              <img class="beat-img" data-beat="3" src="assets/12-venue-messages.png" data-dark-src="assets/12-venue-messages-dark.png" width="1206" height="2622" loading="lazy"
+              <img class="beat-img" data-beat="3" src="assets/12-venue-messages.png" width="1206" height="2622" loading="lazy"
                    alt="Venue messages screen showing a hired bartender for The Copper Still in Surry Hills.">
             </div>
           </div>
@@ -778,34 +759,17 @@
             <div class="device device-small">
               <div class="device-screen">
                 <!-- Scrubbed against scroll position in JS; the poster is the
-                     reduced-motion and video-failure fallback.
-
-                     The poster is set by syncMedia() rather than sitting in the
-                     markup: a poster attribute is fetched on layout, before
-                     script.js can pick a theme, so a hardcoded light one meant
-                     dark visitors pulled both variants. Unlike an <img> there
-                     is no <picture> to defer to here, so JS owns it — and the
-                     <noscript> below covers the only case that leaves out. -->
+                     reduced-motion and video-failure fallback. -->
                 <video id="cloche-video" muted playsinline preload="none"
-                       data-light-poster="assets/15-pull-refresh.png"
-                       data-dark-poster="assets/15-pull-refresh-dark.png"
+                       poster="assets/15-pull-refresh.png"
                        aria-label="The feed pulled down, revealing a green cloche lifting off a plate.">
                   <source src="assets/pull-refresh.mp4" type="video/mp4">
                 </video>
-                <!-- No JS means no scrubbing and no poster, so stand in a still.
-                     <picture> here because this one IS in the markup at scan
-                     time, so it can pick its own variant. -->
+                <!-- No JS means no scrubbing, so stand in a still. -->
                 <noscript>
-                  <picture>
-                    <source srcset="assets/15-pull-refresh-dark.png" media="(prefers-color-scheme: dark)">
-                    <img src="assets/15-pull-refresh.png" width="1206" height="2622"
-                         alt="The feed pulled down, revealing a green cloche lifting off a plate.">
-                  </picture>
+                  <img src="assets/15-pull-refresh.png" width="1206" height="2622"
+                       alt="The feed pulled down, revealing a green cloche lifting off a plate.">
                 </noscript>
-                <!-- Only the video is recoloured by filter (see styles.css); the
-                     filter flips the phone's black Dynamic Island to white, so
-                     this patches it back. Sits above the video, dark theme only. -->
-                <div class="island-patch" aria-hidden="true"></div>
               </div>
             </div>
           </div>

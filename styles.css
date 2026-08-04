@@ -1,6 +1,6 @@
 /* ==========================================================================
    Cloche — marketing site
-   One green, two themes, type does the work.
+   One green, light only, type does the work.
    ========================================================================== */
 
 /* ---------- Tokens ---------- */
@@ -31,45 +31,6 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 
   color-scheme: light;
-}
-
-:root[data-theme="dark"] {
-  --ink: #F5F5F5;
-  --paper: #000000;
-  --paper-2: #1C1C1C;
-  --line: #2E2E2E;
-  --muted: #9DA9B1;
-  --accent: #35B06B;
-  --accent-lift: #35B06B;
-  --accent-soft: rgba(53, 176, 107, 0.14);
-  --cream: #1C1C1C;
-
-  --glow: rgba(53, 176, 107, 0.22);
-  --nav-bg: rgba(0, 0, 0, 0.6);
-  --card-bg: #0E0E0E;
-  --bezel: #262626;
-
-  color-scheme: dark;
-}
-
-/* No-JS fallback: honour the OS preference when the inline script never ran */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) {
-    --ink: #F5F5F5;
-    --paper: #000000;
-    --paper-2: #1C1C1C;
-    --line: #2E2E2E;
-    --muted: #9DA9B1;
-    --accent: #35B06B;
-    --accent-lift: #35B06B;
-    --accent-soft: rgba(53, 176, 107, 0.14);
-    --cream: #1C1C1C;
-    --glow: rgba(53, 176, 107, 0.22);
-    --nav-bg: rgba(0, 0, 0, 0.6);
-    --card-bg: #0E0E0E;
-    --bezel: #262626;
-    color-scheme: dark;
-  }
 }
 
 /* ---------- Base ---------- */
@@ -174,7 +135,6 @@ h3 { font-size: clamp(1.3rem, 2.2vw, 1.7rem); line-height: 1.15; }
   padding: 10px 20px;
 }
 .btn-primary:hover { background: var(--accent-lift); }
-:root[data-theme="dark"] .btn-primary { color: #06130B; }
 
 .btn-sm { font-size: 0.92rem; padding: 8px 18px; }
 
@@ -251,21 +211,6 @@ h3 { font-size: clamp(1.3rem, 2.2vw, 1.7rem); line-height: 1.15; }
 
 .nav-actions { display: flex; align-items: center; gap: 12px; }
 
-.theme-toggle {
-  width: 38px; height: 38px;
-  display: grid; place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--ink);
-  cursor: pointer;
-  transition: border-color 0.2s;
-}
-.theme-toggle:hover { border-color: var(--accent); }
-.theme-toggle svg { width: 18px; height: 18px; }
-.icon-moon { display: none; }
-:root[data-theme="dark"] .icon-moon { display: block; }
-:root[data-theme="dark"] .icon-sun { display: none; }
 
 /* ---------- Device frame ---------- */
 
@@ -297,6 +242,42 @@ h3 { font-size: clamp(1.3rem, 2.2vw, 1.7rem); line-height: 1.15; }
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* Two screenshots on one screen, split down the middle. Each half is a
+   window onto a shot still drawn at full screen width (200% of the half),
+   so both keep native scale instead of being squeezed. show-left/show-right
+   slide the shot inside its window to choose which half of it shows —
+   independent of which side of the phone the window sits on. */
+.device-split { display: flex; }
+.device-split .split-half {
+  position: relative;
+  width: 50%;
+  height: 100%;
+  overflow: hidden;
+}
+.device-split .split-half img {
+  position: absolute;
+  inset: auto;
+  top: 0;
+  width: 200%;
+  max-width: none;
+  height: 100%;
+  object-fit: cover;
+}
+.device-split .split-half.show-left img { left: 0; }
+.device-split .split-half.show-right img { right: 0; }
+/* Hairline seam, so the join reads as deliberate rather than as a glitch. */
+.device-split::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-0.5px);
+  background: rgba(0, 0, 0, 0.16);
+  z-index: 1;
 }
 
 .device-glow {
@@ -558,7 +539,7 @@ html.is-loading .hero-ambient { opacity: 0; }
   backface-visibility: hidden;
 }
 /* Two identical groups, each ending in its own gap, make -50% loop cleanly */
-.marquee-group { display: flex; align-items: center; gap: 40px; padding-right: 40px; }
+.marquee-group { display: flex; align-items: center; gap: 80px; padding-right: 80px; }
 /* Mark and label ride as one word, so the pair never breaks across the mask */
 .marquee .role { display: inline-flex; align-items: center; gap: 10px; }
 /* Sized off the text, not in px: the mark stays the weight of the word beside
@@ -641,10 +622,6 @@ html.is-loading .hero-ambient { opacity: 0; }
   background: var(--cream);
   border: 1px solid var(--line);
 }
-:root[data-theme="dark"] .gallery-shot { background: var(--card-bg); }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) .gallery-shot { background: var(--card-bg); }
-}
 
 .gallery-phone {
   position: absolute;
@@ -660,6 +637,15 @@ html.is-loading .hero-ambient { opacity: 0; }
     0 24px 50px -20px rgba(0, 0, 0, 0.35);
 }
 .gallery-phone .device-screen { border-radius: 21px; }
+
+/* The rail carries both sides' cards; the toggle shows one set at a time.
+   [hidden] alone can't win against .gallery-card's own display, so it is
+   spelled out here. */
+.gallery-card[hidden] { display: none; }
+
+/* Placeholder screen for a side whose captures aren't in yet — a blank
+   phone rather than the black an empty .device-screen would paint. */
+.device-screen.is-blank { background: var(--paper-2); }
 
 /* Apple's caption shape: bold lead-in, the rest in muted grey */
 .gallery-caption {
@@ -790,12 +776,6 @@ html.js .gallery-nav { display: flex; }
   right: 0;
   pointer-events: none;
 }
-.map-scrim-top {
-  top: 0;
-  height: 36svh;
-  background: linear-gradient(to bottom, var(--paper), transparent);
-  opacity: 0.9;
-}
 .map-scrim-bottom {
   bottom: 0;
   height: 22svh;
@@ -814,26 +794,17 @@ html.js .gallery-nav { display: flex; }
   padding-inline: 24px;
 }
 
-/* The words arrive last, by which point the pins are all down and the copy
-   would otherwise read straight through a cluster of them. A soft page-colour
-   halo, sized to the text block rather than to the whole top of the map, keeps
-   it legible without dimming the cartography everywhere else. It rides the
-   wrapper's scrubbed opacity, so it is completely absent until the titles
-   start arriving. z-index sits it behind the text but still above the map:
-   the wrapper's own z-index makes a stacking context this can't escape. */
-.map-titles::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  left: 50%;
-  top: 54%;
-  transform: translate(-50%, -50%);
-  width: min(700px, 122%);
-  height: 148%;
-  background: radial-gradient(closest-side, var(--paper) 45%, transparent 100%);
-  opacity: 0.88;
-  pointer-events: none;
+/* The heading sits straight on the cartography with no scrim behind it, so
+   legibility comes from a halo that hugs the glyphs instead of a box: four
+   tight page-colour shadows outline the letters, a wider soft one lifts them
+   off a pin or a green bay underneath. */
+#map-heading, .map-note {
+  text-shadow:
+    0 1px 0 var(--paper), 0 -1px 0 var(--paper),
+    1px 0 0 var(--paper), -1px 0 0 var(--paper),
+    0 2px 14px var(--paper);
 }
+
 .map-note { color: var(--muted); margin-top: 12px; font-size: 0.98rem; }
 
 /* The app's own summary pill, counting up as the pins land */
@@ -892,7 +863,6 @@ html.js .gallery-nav { display: flex; }
   white-space: nowrap;
 }
 .tab.is-active { background: var(--accent); color: #fff; }
-:root[data-theme="dark"] .tab.is-active { color: #06130B; }
 /* ---------- Side toggle: hero → nav ----------
    The rail spans from the toggle's place in the hero to the foot of the page,
    and the toggle is sticky inside it: it scrolls with the hero, meets the bar
@@ -1062,7 +1032,6 @@ html.is-loading .tabs-rail { opacity: 0; transition: none; }
   height: 260svh;
   background: var(--cream);
 }
-:root[data-theme="dark"] .cloche-beat { background: var(--paper-2); }
 
 .cloche-sticky {
   position: sticky;
@@ -1080,38 +1049,6 @@ html.is-loading .tabs-rail { opacity: 0; transition: none; }
   gap: clamp(36px, 6vw, 90px);
 }
 .cloche-copy p { color: var(--muted); margin-top: 18px; max-width: 26em; }
-
-/* There is no dark recording of the pull-to-refresh clip, so dark theme flips
-   the light one (flat UI content, no photos): invert + hue-rotate keeps the
-   cloche green while whites become blacks.
-
-   Scoped to .has-video — set in JS once frames are actually decodable — so the
-   poster is never inverted. The poster is a real dark capture swapped in by JS,
-   which is what reduced-motion and load-failure users see. */
-:root[data-theme="dark"] .cloche-beat video.has-video { filter: invert(1) hue-rotate(180deg); }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) .cloche-beat video.has-video { filter: invert(1) hue-rotate(180deg); }
-}
-
-/* Geometry measured off the 1206x2622 frame: the island spans x 415-790,
-   y 42-151. The screen box shares that ratio, so percentages land exactly.
-   Inflated ~2px per side (kept centred on 50%) to swallow the island's
-   antialiased edge, which would otherwise invert into a pale halo. */
-.island-patch {
-  position: absolute;
-  left: 34.2%;
-  top: 1.50%;
-  width: 31.6%;
-  height: 4.40%;
-  border-radius: 999px;
-  background: #000;
-  opacity: 0;
-  pointer-events: none;
-}
-:root[data-theme="dark"] video.has-video ~ .island-patch { opacity: 1; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) video.has-video ~ .island-patch { opacity: 1; }
-}
 
 /* ---------- Feature grid ---------- */
 
@@ -1380,6 +1317,9 @@ html.is-loading .tabs-rail { opacity: 0; transition: none; }
     width: max(120px, min(300px, 74vw, calc((100svh - var(--hero-lift) - var(--copy-block) - 112px) * 0.46 + 2px)));
   }
 
+  /* Below the fixed nav (~70px tall on phones), not underneath it */
+  .map-titles { top: max(88px, 10svh); }
+
   .sides-columns { grid-template-columns: 1fr; }
 
   /* Pinned scroll on small screens: the phone shrinks and pins near the top,
@@ -1429,8 +1369,6 @@ html.is-loading .tabs-rail { opacity: 0; transition: none; }
   .wordmark { font-size: 1.2rem; }
   .nav-actions { gap: 8px; }
   .nav-actions .btn-sm { font-size: 0.8rem; padding: 7px 12px; }
-  .theme-toggle { width: 33px; height: 33px; }
-  .theme-toggle svg { width: 16px; height: 16px; }
   .hero-tabs .tab { padding: 7px 14px; font-size: 0.86rem; }
 }
 
@@ -1439,17 +1377,14 @@ html.is-loading .tabs-rail { opacity: 0; transition: none; }
   .wordmark { font-size: 1.05rem; }
   .nav-actions { gap: 6px; }
   .nav-actions .btn-sm { font-size: 0.7rem; padding: 6px 10px; }
-  .theme-toggle { width: 30px; height: 30px; }
-  .theme-toggle svg { width: 15px; height: 15px; }
   .hero-tabs .tab { padding: 6px 12px; font-size: 0.82rem; }
 }
 
 /* The last of the small phones: everything down one more notch so the bar
-   still holds all four. */
+   still holds all three. */
 @media (max-width: 360px) {
   .nav-inner { width: calc(100% - 20px); }
   .wordmark { font-size: 1rem; }
   .nav-actions .btn-sm { font-size: 0.66rem; padding: 5px 9px; }
-  .theme-toggle { width: 28px; height: 28px; }
   .hero-tabs .tab { padding: 5px 11px; font-size: 0.8rem; }
 }

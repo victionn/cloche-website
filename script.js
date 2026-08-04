@@ -19,48 +19,6 @@
     document.documentElement.classList.remove('is-loading', 'is-arriving');
   }, 6500);
 
-  /* ---------- Theme toggle + themed screenshots ----------
-     App screenshots have pre-generated dark variants (assets/*-dark.png,
-     recoloured with the app's own dark tokens); swap sources with the theme. */
-
-  function syncMedia(theme) {
-    /* Eager images use <picture> instead of a src swap, so the preload scanner
-       resolves the theme itself and fetches one file rather than two. That
-       leaves the explicit toggle to override the media query by hand: forcing
-       the source on or off makes the browser re-run its selection. Do this
-       before the src swaps below — these elements have no [data-dark-src]. */
-    document.querySelectorAll('source[data-dark-source]').forEach(function (src) {
-      var want = theme === 'dark' ? 'all' : 'not all';
-      if (src.media !== want) src.media = want;
-    });
-    document.querySelectorAll('img[data-dark-src]').forEach(function (img) {
-      if (!img.dataset.lightSrc) img.dataset.lightSrc = img.getAttribute('src');
-      var want = theme === 'dark' ? img.dataset.darkSrc : img.dataset.lightSrc;
-      if (img.getAttribute('src') !== want) img.setAttribute('src', want);
-    });
-    /* Video posters get the same treatment. The clip itself has no dark
-       recording and is recoloured in CSS instead.
-       The light poster is authored as data-light-poster rather than a real
-       poster attribute — the attribute is fetched on layout, well before this
-       runs, so leaving it in the markup made every dark visitor pull the light
-       still too. The fallback below still captures an inline one if any video
-       ever keeps its attribute. */
-    document.querySelectorAll('video[data-dark-poster]').forEach(function (vid) {
-      if (!vid.dataset.lightPoster) vid.dataset.lightPoster = vid.getAttribute('poster');
-      var want = theme === 'dark' ? vid.dataset.darkPoster : vid.dataset.lightPoster;
-      if (vid.getAttribute('poster') !== want) vid.setAttribute('poster', want);
-    });
-  }
-  syncMedia(document.documentElement.dataset.theme);
-
-  var toggle = document.getElementById('theme-toggle');
-  toggle.addEventListener('click', function () {
-    var next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-    document.documentElement.dataset.theme = next;
-    localStorage.setItem('cloche-theme', next);
-    syncMedia(next);
-  });
-
   /* ---------- Nav background on scroll ---------- */
 
   var nav = document.getElementById('nav');
@@ -234,18 +192,41 @@
      for the rail to work — with JS off the arrows are hidden (see styles.css)
      and it stays a plain scroller. */
 
+  var gallerySide = null;
   var rail = document.getElementById('gallery-viewport');
   if (rail) {
     var railPrev = document.getElementById('gallery-prev');
     var railNext = document.getElementById('gallery-next');
     var railCards = rail.querySelectorAll('.gallery-card');
 
+    /* The rail holds both sides' cards and the Work/Hire toggle hides one
+       set, so every measurement has to run over what is actually on screen —
+       a hidden card has no offsetLeft to measure from. */
+    function railVisible() {
+      return Array.prototype.filter.call(railCards, function (card) {
+        return !card.hidden;
+      });
+    }
+
     // Card pitch measured off the DOM rather than hard-coded, so the clamped
     // card width and the gap can change in CSS without touching this.
     function railStep() {
-      if (railCards.length < 2) return rail.clientWidth;
-      return railCards[1].offsetLeft - railCards[0].offsetLeft;
+      var cards = railVisible();
+      if (cards.length < 2) return rail.clientWidth;
+      return cards[1].offsetLeft - cards[0].offsetLeft;
     }
+
+    /* Called by the hero's Work/Hire toggle. Swapping the set changes the
+       rail's scrollWidth, so the position and the arrows are both reset —
+       landing mid-rail on a side you just switched to reads as broken. */
+    gallerySide = function (side) {
+      Array.prototype.forEach.call(railCards, function (card) {
+        card.hidden = card.dataset.side !== side;
+      });
+      railIndex = 0;
+      rail.scrollTo({ left: 0, behavior: 'auto' });
+      railSync();
+    };
 
     function railSync() {
       var max = rail.scrollWidth - rail.clientWidth;
@@ -481,7 +462,12 @@
       swapImgs[i].classList.toggle('is-active', i === index);
     });
     swapHeadline(index);
+    if (gallerySide) gallerySide(index === 1 ? 'hire' : 'work');
   }
+  // The markup ships the hire cards visible (a no-JS visit gets the finished
+  // side); sync the rail to whichever tab actually opens active.
+  if (gallerySide) gallerySide(tabs[1].classList.contains('is-active') ? 'hire' : 'work');
+
   tabs.forEach(function (tab, i) {
     tab.addEventListener('click', function () {
       if (tab.classList.contains('is-active')) return;
@@ -633,6 +619,10 @@
        are 314 jobs / 48 suburbs (some pins sit behind others), so the chip
        scales up to land on those. */
     var PIN_DATA = [
+      // Northern band, hand-placed on the base image (not app-measured):
+      // Hornsby, Berowra, Dural, Terrey Hills, St Ives, Mona Vale.
+      [39.50, 10.50, 2], [52.00, 13.50, 3], [28.00, 15.00, 2],
+      [66.00, 12.00, 1], [58.00, 19.00, 4], [80.50, 7.50, 2],
       [44.52, 25.84, 3], [56.49, 25.84, 6], [78.22, 25.84, 9],
       [45.61, 32.28, 3], [49.91, 32.28, 3], [60.27, 31.57, 6],
       [64.74, 32.28, 5], [69.80, 31.34, 3], [36.51, 34.77, 8],
@@ -725,17 +715,24 @@
        the base image's ratio rather than offsetHeight: before the image has
        loaded the element's aspect-ratio hasn't settled and offsetHeight reads
        far too tall, which would poison the cache for the rest of the page. */
-    var stageW = 0, stageH = 0;
+    var stageW = 0, stageH = 0, viewW = 0, viewH = 0;
+    var mapSticky = mapSection.querySelector('.map-sticky');
     function mapMeasure() {
       stageW = mapStage.offsetWidth;
       stageH = stageW * 1720 / 1206;
+      /* Frame against the sticky box, not the window: it's 100svh, so it
+         holds still when mobile browser chrome collapses mid-scroll —
+         framing off innerHeight made the map jump a size right as the
+         section (and its observer) came in. */
+      viewW = mapSticky.clientWidth;
+      viewH = mapSticky.clientHeight;
     }
     mapMeasure();
     addEventListener('load', function () { mapMeasure(); });
 
     function mapFrame(zoom) {
       var W = stageW, H = stageH;
-      var vw = innerWidth, vh = innerHeight;
+      var vw = viewW, vh = viewH;
 
       var bandW = (pinMaxX - pinMinX) * W + PIN_W_MAX * W;
       var bandH = (pinMaxY - pinMinY) * H + PIN_H_MAX * W;
@@ -791,11 +788,13 @@
 
       var easeOutCubic = function (t) { return 1 - Math.pow(1 - t, 3); };
 
+      // The map itself never moves with scroll — it's framed once (and on
+      // resize); only the pins scrub.
+      mapFrame(1);
+      addEventListener('load', function () { mapMeasure(); mapFrame(1); });
+
       var mapLastP = -1;
       function mapApply(p) {
-        // Slight settle-out of an opening zoom gives the map itself a drift
-        mapFrame(1.05 - 0.05 * easeOutCubic(p));
-
         var landedJobs = 0, landedPins = 0;
         mapPins.forEach(function (pin) {
           var t = Math.min(1, Math.max(0, (p - pin.start) / LAND));
@@ -825,11 +824,11 @@
         mapActive = entries[0].isIntersecting;
         // Re-measure on the way in: a scrollbar appearing, or the loading
         // overlay releasing, changes the stage's width after the first read
-        if (mapActive) { mapMeasure(); mapLastP = -1; requestAnimationFrame(mapScrub); }
+        if (mapActive) { mapMeasure(); mapFrame(1); mapLastP = -1; requestAnimationFrame(mapScrub); }
       });
       mapIO.observe(mapSection);
       // A resize moves the framing even at the same scroll position
-      addEventListener('resize', function () { mapMeasure(); mapLastP = -1; });
+      addEventListener('resize', function () { mapMeasure(); mapFrame(1); mapLastP = -1; });
     }
   }
 
@@ -844,13 +843,6 @@
   if (!reduceMotion) {
     var scrubActive = false;
     var targetTime = 0;
-
-    // Hand over from the dark poster to the recoloured video only once a frame
-    // is actually decodable, so a failed or slow load never shows an inverted
-    // poster (see .has-video in styles.css).
-    video.addEventListener('loadeddata', function () {
-      video.classList.add('has-video');
-    });
 
     // Start fetching the video only when the section is approaching
     var loadIO = new IntersectionObserver(function (entries) {
@@ -942,7 +934,7 @@
    outward from the device, so the light reads as silk flowing off it —
    no edges, no geometry, just glow dissolving into the page. Rendered
    premultiplied over a transparent canvas, so the same shader works on
-   both themes (mint wash on white, luminous green on black). Pauses when
+   the page (a mint wash on white). Pauses when
    the hero is off-screen or the tab is hidden; renders a single static
    frame under reduced motion; survives context loss (mobile Safari
    evicts WebGL contexts under first-load memory pressure). If WebGL is
@@ -1087,32 +1079,15 @@
     '}',
   ].join('\n');
 
-  /* Same green, two voices: deeper tones carry on white, brighter ones
-     glow on black. Values are 0-1 RGB for the shader. */
-  function palette(theme) {
-    var dark = theme === 'dark';
-    return dark ? {
-      tintIn: [0.4, 0.92, 0.64],    // luminous mint
-      tintOut: [0.12, 0.56, 0.31],  // deep brand green
-      strength: 1.0,
-      reach: 0.6, base: 0.13, veil: 1.15,
-    } : {
-      /* On white the light must be darker than the page or it vanishes:
-         deep brand greens, and almost no flat base so what reads is the ray
-         texture rather than a uniform tint. The rays carry roughly twice the
-         amplitude they do on black — a mid green at 40% over white is a much
-         quieter mark than the same green at 40% over near-black. */
-      tintIn: [0.07, 0.45, 0.24],   // deep brand green, darker than the page
-      tintOut: [0.24, 0.63, 0.4],   // mid green, never pale mint
-      strength: 1.15,
-      reach: 0.62, base: 0.085, veil: 1.15,
-    };
-  }
-  var pal = palette(document.documentElement.dataset.theme);
-  new MutationObserver(function () {
-    pal = palette(document.documentElement.dataset.theme);
-    if (reduceMotion || rafId === null) draw(); // animated frames pick it up anyway
-  }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  /* On white the light must be darker than the page or it vanishes: deep
+     brand greens, and almost no flat base so what reads is the ray texture
+     rather than a uniform tint. Values are 0-1 RGB for the shader. */
+  var pal = {
+    tintIn: [0.07, 0.45, 0.24],   // deep brand green, darker than the page
+    tintOut: [0.24, 0.63, 0.4],   // mid green, never pale mint
+    strength: 1.15,
+    reach: 0.62, base: 0.085, veil: 1.15,
+  };
 
   /* The light is anchored to the phone. Measure it every frame — two
      getBoundingClientRect calls are nothing, and it means fonts, layout
