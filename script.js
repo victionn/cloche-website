@@ -219,13 +219,29 @@
     /* Called by the hero's Work/Hire toggle. Swapping the set changes the
        rail's scrollWidth, so the position and the arrows are both reset —
        landing mid-rail on a side you just switched to reads as broken. */
-    gallerySide = function (side) {
+    gallerySide = function (side, animate) {
       Array.prototype.forEach.call(railCards, function (card) {
         card.hidden = card.dataset.side !== side;
       });
       railIndex = 0;
       rail.scrollTo({ left: 0, behavior: 'auto' });
       railSync();
+
+      /* The incoming set rises in on a stagger instead of appearing between
+         two frames. Nothing is crossfaded against the outgoing side: the two
+         sets are different heights and would jitter the rail while both were
+         laid out. The shots are eager-loaded during the preloader, so by the
+         time anyone can reach this toggle they are decoded and the fade never
+         reveals a half-painted image. */
+      if (!animate || reduceMotion) return;
+      var i = 0;
+      Array.prototype.forEach.call(railCards, function (card) {
+        if (card.hidden) return;
+        card.classList.remove('is-swapping');
+        void card.offsetWidth; // restart the animation on every swap
+        card.style.setProperty('--d', (i++ * 0.07) + 's');
+        card.classList.add('is-swapping');
+      });
     };
 
     function railSync() {
@@ -462,7 +478,7 @@
       swapImgs[i].classList.toggle('is-active', i === index);
     });
     swapHeadline(index);
-    if (gallerySide) gallerySide(index === 1 ? 'hire' : 'work');
+    if (gallerySide) gallerySide(index === 1 ? 'hire' : 'work', true);
     sidePanels(index === 1 ? 'hire' : 'work');
   }
 

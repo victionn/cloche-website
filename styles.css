@@ -1589,3 +1589,86 @@ html.is-loading .tabs-rail { opacity: 0; transition: none; }
   .nav-actions .btn-sm { font-size: 0.66rem; padding: 5px 9px; }
   .hero-tabs .tab { padding: 5px 11px; font-size: 0.8rem; }
 }
+
+/* ---------- Legal pages (privacy.html, terms.html) ----------
+   Read, not browsed. The measure is set in em so it tracks the type rather
+   than the viewport, and the page keeps the site's fonts and green so it
+   reads as the same company — but none of the hero's display sizes, which
+   would fight a document that is all body copy. */
+
+.legal-page .nav {
+  position: sticky; /* nothing here scrolls under it worth hiding */
+  background: var(--nav-bg);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  border-bottom-color: var(--line);
+}
+.legal-page .nav-pill a[aria-current="page"] { color: var(--ink); font-weight: 600; }
+
+.legal { padding: clamp(40px, 7vh, 76px) 0 clamp(72px, 12vh, 130px); }
+.legal-inner { max-width: 46em; }
+
+.legal h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2.1rem, 4.4vw, 3rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+.legal .date { color: var(--muted); font-size: 0.95rem; }
+
+/* The opening paragraph is the one the reader must not skim past, so it is
+   set a size up and closed with a rule rather than left in the run of text. */
+.legal .intro {
+  margin-top: 26px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--line);
+  font-size: 1.1rem;
+}
+
+.legal section { margin-top: 38px; }
+.legal h2 {
+  font-family: var(--font-display);
+  font-size: 1.22rem;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  margin-bottom: 12px;
+}
+.legal p { color: var(--muted); line-height: 1.62; }
+.legal p + p { margin-top: 14px; }
+.legal .intro p { color: var(--ink); }
+
+.legal ul { margin-top: 14px; padding-left: 0; list-style: none; display: grid; gap: 10px; }
+/* A bullet drawn in the brand green rather than the browser's disc, aligned
+   off the first line's cap height so it sits with the text, not above it. */
+.legal li { position: relative; padding-left: 26px; color: var(--muted); line-height: 1.62; }
+.legal li::before {
+  content: "";
+  position: absolute;
+  left: 6px; top: 0.66em;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.legal a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.legal a:hover { color: var(--accent-lift); }
+
+@media (max-width: 760px) {
+  .legal h2 { font-size: 1.12rem; }
+  .legal .intro { font-size: 1.04rem; }
+}
+
+/* Work/Hire swap: the incoming cards rise in one after another, so the rail
+   reads as turning over rather than cutting. --d is set per card in JS. */
+.gallery-card.is-swapping {
+  animation: gallery-card-in 0.42s var(--ease-out) both;
+  animation-delay: var(--d, 0s);
+}
+@keyframes gallery-card-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.99); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gallery-card.is-swapping { animation: none; }
+}
