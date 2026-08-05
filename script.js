@@ -463,10 +463,31 @@
     });
     swapHeadline(index);
     if (gallerySide) gallerySide(index === 1 ? 'hire' : 'work');
+    sidePanels(index === 1 ? 'hire' : 'work');
   }
+
+  /* "The same app, facing both ways" is one card that shows the live side.
+     The panel is re-flagged rather than crossfaded in JS: hidden drops it out
+     of the accessibility tree as well as the paint, and the .side-panel rule
+     in CSS animates the incoming one. */
+  var sidePanelEls = document.querySelectorAll('[data-side-panel]');
+  function sidePanels(side) {
+    Array.prototype.forEach.call(sidePanelEls, function (panel) {
+      var on = panel.dataset.sidePanel === side;
+      panel.hidden = !on;
+      if (on && !reduceMotion) {
+        // Restart the fade on every swap, not just the first
+        panel.classList.remove('is-in');
+        void panel.offsetWidth;
+        panel.classList.add('is-in');
+      }
+    });
+  }
+
   // The markup ships the hire cards visible (a no-JS visit gets the finished
   // side); sync the rail to whichever tab actually opens active.
   if (gallerySide) gallerySide(tabs[1].classList.contains('is-active') ? 'hire' : 'work');
+  sidePanels(tabs[1].classList.contains('is-active') ? 'hire' : 'work');
 
   tabs.forEach(function (tab, i) {
     tab.addEventListener('click', function () {
@@ -772,7 +793,7 @@
          progress, staggered across the landing window. DROP is the fall
          height in pin-heights — far enough to clearly come "from above",
          near enough that the tip reads as aimed at its suburb throughout. */
-      var LAND = 0.16, FIRST = 0.06, LAST = 0.82;
+      var LAND = 0.16, FIRST = 0.02, LAST = 0.82;
       var DROP = 320;
       var pitch = (LAST - LAND - FIRST) / Math.max(1, mapPins.length - 1);
       mapPins.forEach(function (pin, i) {
@@ -815,7 +836,10 @@
       function mapScrub() {
         if (!mapActive) return;
         var rect = mapSection.getBoundingClientRect();
-        var p = -rect.top / (rect.height - innerHeight);
+        // Lead the scrub: pins start falling soon after the section's top edge
+        // enters the viewport, not only after the sticky frame anchors.
+        var lead = innerHeight * 0.8;
+        var p = (lead - rect.top) / (rect.height - innerHeight + lead);
         p = Math.min(1, Math.max(0, p));
         if (p !== mapLastP) { mapLastP = p; mapApply(p); }
         requestAnimationFrame(mapScrub);
@@ -840,7 +864,9 @@
   var video = document.getElementById('cloche-video');
   var clocheSection = document.getElementById('delight');
 
-  if (!reduceMotion) {
+  // The beat is an optional section: observe(null) throws, so bail if the
+  // page does not carry it.
+  if (!reduceMotion && video && clocheSection) {
     var scrubActive = false;
     var targetTime = 0;
 

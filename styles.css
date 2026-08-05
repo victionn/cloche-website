@@ -117,6 +117,17 @@ h3 { font-size: clamp(1.3rem, 2.2vw, 1.7rem); line-height: 1.15; }
   margin-top: 18px;
 }
 
+/* The gallery's one line of copy, sat under "Three steps." It swaps with the
+   side toggle, so it is set in the same weight both sides read at rather than
+   the muted grey of .section-sub — the accent word has to carry at a glance
+   while the words are still travelling. */
+.gallery-lede {
+  margin-top: 14px;
+  font-size: clamp(1.05rem, 1.7vw, 1.25rem);
+  font-weight: 500;
+  max-width: 26em;
+}
+
 /* ---------- Buttons ---------- */
 
 .btn {
@@ -267,6 +278,37 @@ h3 { font-size: clamp(1.3rem, 2.2vw, 1.7rem); line-height: 1.15; }
 }
 .device-split .split-half.show-left img { left: 0; }
 .device-split .split-half.show-right img { right: 0; }
+/* The captured status bar — clock, carrier, battery, dynamic island — is
+   pulled up out of frame rather than masked over like the hero does, so the
+   screen fills with app content instead of a blank strip. 6.2% is the bar's
+   share of a 2622px capture; the extra height makes up what the shift would
+   otherwise leave short at the bottom. Must sit after the .device-split
+   rules above: same specificity, so source order is what wins. */
+.gallery-phone .device-screen img {
+  top: -6.2%;
+  bottom: auto;
+  height: 106.6%;
+}
+/* The apply screen was captured with its sheet pinned right under the status
+   bar, so the plain shift above leaves it jammed against the top edge and it
+   reads as a full screen rather than a sheet. There is only ~0.6% of slack in
+   the capture itself, so instead of shifting less, the shot is dropped clear
+   of the top and the gap is filled with the backdrop it sits on — a flat
+   #ccc, sampled from the capture, so the join is invisible. clip-path takes
+   the status bar off rather than the offset, which is now doing the dropping. */
+.gallery-phone .device-screen.is-sheet { background: #ccc; }
+.gallery-phone .device-screen.is-sheet img {
+  top: -4.2%;
+  height: 104.6%;
+  clip-path: inset(6.2% 0 0 0);
+}
+
+/* Growing past the screen's own ratio widens each shot too, and a centred
+   overflow would slide the halves off their split. Pin each to the edge it
+   is anchored on so the seam still lands mid-screen. */
+.device-split .split-half.show-left img { object-position: left center; }
+.device-split .split-half.show-right img { object-position: right center; }
+
 /* Hairline seam, so the join reads as deliberate rather than as a glitch. */
 .device-split::after {
   content: "";
@@ -561,6 +603,39 @@ html.is-loading .hero-ambient { opacity: 0; }
 
 /* ---------- Scroll gallery ---------- */
 
+/* The one dark surface on the page. It opens on near-black behind the heading
+   and resolves to paper by the time the rail starts, so the section arrives as
+   its own room and then hands the reader back to the white page beneath it —
+   no seam to hide at either end.
+
+   The stops are bunched in the first half on purpose: spread evenly, the mid
+   greys sit right where the cards begin and the cream shots read as dirty
+   against them. The green cast is a few points of the brand hue mixed into
+   the darks, so the band belongs to this page rather than looking like a
+   stock slate gradient. */
+/* A wash, not a dark band. The page is light only, so depth here comes from a
+   tint of the brand green settling at the top and clearing to paper by the
+   rail — deep enough to read as a surface the cards sit on, light enough that
+   the type stays ink and the cream shots keep their warmth. Anything darker
+   turns the section into a different site. */
+.gallery {
+  /* Room for the wash to arrive before the heading does. */
+  padding-top: clamp(150px, 20vh, 260px);
+  background: linear-gradient(
+    to bottom,
+    /* Meets the pale green the marquee above sits in, so there is no seam */
+    #EEF4EF 0%,
+    #DFE9E2 6%,
+    /* Deepest through the heading and its line */
+    #C6D6CC 18%,
+    #CEDCD3 30%,
+    #DCE7E0 45%,
+    #E9EFEB 62%,
+    #F4F7F5 76%,
+    var(--paper) 88%
+  );
+}
+
 /* The rail is the scroll container. Its inline padding matches .container's
    gutter so the first card starts on the same line as the heading above it,
    while later cards still bleed off both edges. Percentages resolve against
@@ -637,6 +712,54 @@ html.is-loading .hero-ambient { opacity: 0; }
     0 24px 50px -20px rgba(0, 0, 0, 0.35);
 }
 .gallery-phone .device-screen { border-radius: 21px; }
+
+/* Full-bleed variant: the shot runs to the card's own edges with no handset
+   around it. Half of a 4:5 card is 2:5 = 0.40, and the captures are
+   1206/2622 = 0.46, so each half can show a screenshot at its own scale with
+   only a sliver cropped off the side — no squashing, and nothing to letterbox.
+
+   It is also the sharper way to draw them. The framed version fits a whole
+   screen into a half-width window by rendering the image at 200% of that
+   window, so on a 2x display it asks for roughly 1800 device pixels from a
+   1206px capture and softens. Here each shot is drawn at about its own
+   window's width, which lands under the source's native size and stays
+   crisp. */
+.gallery-shot.is-bleed .gallery-phone {
+  inset: 0;
+  width: auto;
+  transform: none;
+  padding: 0;
+  background: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+.gallery-shot.is-bleed .device-screen,
+.gallery-shot.is-bleed .gallery-phone .device-screen {
+  height: 100%;
+  aspect-ratio: auto; /* the card sets the box now, not the capture's ratio */
+  border-radius: 0;
+  background: var(--paper);
+}
+/* Both of the app's own bars are taken off here, not just the status bar the
+   framed shots trim: the picture is meant to read as the app's content, and a
+   tab bar sitting on the card's bottom edge reads as this site's chrome. The
+   box is hung 6.2% above the card and run past its bottom edge, so the status
+   bar clears the top and the tab bar falls out below. */
+.gallery-shot.is-bleed .split-half img {
+  /* The box is taller than the card, so the capture fills it vertically and
+     the two offsets are what decide which slice shows. Solved rather than
+     eyeballed: with a box h% tall hung t% above the card, the top crop is t/h
+     of the capture and the bottom crop is 1 - t/h - 100/h. Wanting 6.2% off
+     the top (status bar) and ~12% off the bottom (tab bar) gives h = 122,
+     t = 7.6. Nudge the two together or the status bar creeps back in. */
+  top: -7.6%;
+  height: 122%;
+  width: 100%;
+  max-width: none;
+  object-fit: cover;
+}
+.gallery-shot.is-bleed .split-half.show-left img { left: 0; right: auto; object-position: left center; }
+.gallery-shot.is-bleed .split-half.show-right img { left: auto; right: 0; object-position: right center; }
 
 /* The rail carries both sides' cards; the toggle shows one set at a time.
    [hidden] alone can't win against .gallery-card's own display, so it is
@@ -783,9 +906,30 @@ html.js .gallery-nav { display: flex; }
   opacity: 0.75;
 }
 
+/* The titles land in the top third, where the pins are densest. A halo alone
+   can't separate serif type from a field of coloured markers, so the map is
+   washed out to near-paper behind the heading and returns to full strength
+   below it — the reader sees a clean field, not a panel with an edge. */
+.map-scrim-top {
+  top: 0;
+  height: 46svh;
+  background: linear-gradient(
+    to bottom,
+    var(--paper) 0%,
+    rgba(255, 255, 255, 0.94) 30%,
+    rgba(255, 255, 255, 0.72) 55%,
+    rgba(255, 255, 255, 0.32) 78%,
+    transparent 100%
+  );
+}
+
 .map-titles {
   position: absolute;
-  top: max(96px, 11svh);
+  /* Set down from the top edge rather than against it: the nav is already
+     occupying the top of the screen, so a heading tucked right beneath it
+     reads as a second toolbar. The gap lets the map open above the type and
+     the block sit on the cartography as a caption. */
+  top: calc(max(112px, 12svh) - 10px);
   left: 0;
   right: 0;
   text-align: center;
@@ -794,18 +938,45 @@ html.js .gallery-nav { display: flex; }
   padding-inline: 24px;
 }
 
-/* The heading sits straight on the cartography with no scrim behind it, so
-   legibility comes from a halo that hugs the glyphs instead of a box: four
-   tight page-colour shadows outline the letters, a wider soft one lifts them
-   off a pin or a green bay underneath. */
-#map-heading, .map-note {
-  text-shadow:
-    0 1px 0 var(--paper), 0 -1px 0 var(--paper),
-    1px 0 0 var(--paper), -1px 0 0 var(--paper),
-    0 2px 14px var(--paper);
+/* The map is the second full-bleed moment on the page, so its titles are set
+   like the hero's rather than like a section heading: the serif at book
+   weight, near-solid leading, and the accent carried by colour alone. */
+#map-heading {
+  font-family: var(--font-hero);
+  font-weight: 400;
+  font-optical-sizing: auto;
+  font-size: clamp(2.6rem, 6.4vw, 4.6rem);
+  letter-spacing: -0.01em;
+  line-height: 0.94;
+  text-wrap: balance;
 }
 
-.map-note { color: var(--muted); margin-top: 12px; font-size: 0.98rem; }
+#map-heading .hl { color: var(--accent); }
+
+/* Subhead follows the hero's rule: at this size colour alone doesn't register,
+   so the accent run is set in real italic. */
+.map-note {
+  margin: 16px auto 0;
+  max-width: 18em;
+  font-size: clamp(1.15rem, 2vw, 1.4rem);
+  font-weight: 500;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.map-note .hl {
+  color: var(--accent);
+  font-weight: 600;
+  font-style: italic;
+}
+
+/* With the wash carrying the contrast, the type needs a glow rather than an
+   outline — a hard ring at this size traces the serifs and reads as a sticker.
+   Two soft page-colour blooms are enough to lift the letters off a pin that
+   strays into the top of the frame. */
+#map-heading, .map-note {
+  text-shadow: 0 0 16px var(--paper), 0 0 42px var(--paper);
+}
 
 /* The app's own summary pill, counting up as the pins land */
 .map-chip {
@@ -931,11 +1102,35 @@ html.is-loading .tabs-rail { opacity: 0; transition: none; }
   margin-top: 48px;
 }
 
+/* One card carrying both sides. Narrower than the full grid so the measure
+   stays readable now that the copy is not sharing the row with a second
+   column, and centred so it sits under the heading rather than ragging left. */
+.sides-columns.is-single {
+  grid-template-columns: 1fr;
+  max-width: 760px;
+  margin-inline: auto;
+}
+
 .side-col {
   border: 1px solid var(--line);
   border-radius: 18px;
   background: var(--card-bg);
   padding: 34px 30px;
+}
+
+/* The two sides run to different lengths, so the card would jump height on
+   every swap. Both panels occupy the same grid cell: the card is as tall as
+   the taller side and holds still while the copy changes underneath. */
+.sides-columns.is-single .side-col { display: grid; }
+.side-panel { grid-area: 1 / 1; }
+.side-panel[hidden] { display: none; }
+
+.side-panel.is-in {
+  animation: side-panel-in 0.34s var(--ease-out) both;
+}
+@keyframes side-panel-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
 }
 .side-tag {
   color: var(--accent);
@@ -1263,7 +1458,13 @@ html.is-loading .tabs-rail { opacity: 0; transition: none; }
   .hero-inner {
     grid-template-columns: 1fr;
     grid-template-rows: auto auto;
-    align-content: end;
+    /* `safe` matters: --copy-block below is an estimate, so on a phone whose
+       type metrics run taller than it allows, the stack overflows its row.
+       Plain `end` resolves that overflow off the TOP edge, taking the headline
+       with it and leaving nothing to scroll back to. `safe` falls back to
+       start-alignment the moment it would overflow, so the copy is always
+       reachable and only the bottom gives way. */
+    align-content: safe end;
     align-items: start;
     /* Centred: at this size the headline is the whole top of the screen, and
        ragging it left left a wedge of dead space beside it. Centring also puts
@@ -1318,7 +1519,7 @@ html.is-loading .tabs-rail { opacity: 0; transition: none; }
   }
 
   /* Below the fixed nav (~70px tall on phones), not underneath it */
-  .map-titles { top: max(88px, 10svh); }
+  .map-titles { top: calc(max(104px, 11svh) - 10px); }
 
   .sides-columns { grid-template-columns: 1fr; }
 

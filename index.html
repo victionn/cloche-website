@@ -20,6 +20,17 @@
   <script>
     (function () {
       document.documentElement.classList.add('js', 'is-loading');
+
+      /* The preloader owns the first screen, so the page must start at the top
+         to hand over to the hero. Browsers otherwise restore the scroll offset
+         from the last visit on a reload or a back-navigation, and because the
+         loader locks scrolling while it plays, the reader is put down mid-hero
+         with the headline already above the fold and no scroll to recover it.
+         Manual restoration plus an explicit reset is the only reliable fix —
+         iOS Safari applies its restore after this script runs, so the reset is
+         repeated once more when the page fires load. */
+      if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+      addEventListener('load', function () { scrollTo(0, 0); });
     })();
   </script>
 
@@ -376,8 +387,8 @@
 
       <nav class="nav-pill" aria-label="Site">
         <a href="#sides">Two sides</a>
-        <a href="#features">Features</a>
-        <a href="#numbers">The numbers</a>
+        <a href="#gallery">Three steps</a>
+        <a href="#map">The map</a>
       </nav>
 
       <div class="nav-actions">
@@ -518,38 +529,6 @@
     </section>
     </div><!-- /.hero-stage -->
 
-    <!-- ============ FULL-SCREEN MAP ============
-         The app's suburb map, blown up to the whole viewport. The section is
-         tall on purpose: the extra height is the scrub track. Scrolling starts
-         on the bare map and rains the pins onto it, smallest counts first,
-         ending on the CBD's 37. Pins are DOM elements over a genuinely empty
-         basemap (captured from the app in the simulator with a zero-match
-         filter), so each one can land on real map detail — roads, water,
-         labels — and stay welded to it through the zoom. -->
-    <section class="mapscroll" id="map" aria-labelledby="map-heading">
-      <div class="map-sticky">
-        <div class="map-stage" id="map-stage" aria-hidden="true">
-          <img class="map-base" src="assets/map-base.png"
-               width="1206" height="1720" loading="lazy" alt="">
-          <!-- pins injected by script.js -->
-        </div>
-        <div class="map-scrim map-scrim-bottom" aria-hidden="true"></div>
-        <!-- The heading block is persistently visible: no entrance reveal and
-             no scrubbed opacity, so the map is labelled the moment the section
-             comes into view and stays labelled all the way through it. -->
-        <div class="map-titles" id="map-titles">
-          <h2 id="map-heading">Browse local openings</h2>
-          <p class="map-note">Flexible work that suits you</p>
-        </div>
-        <!-- The app's own "314 jobs · 48 suburbs" pill; counts up as pins land -->
-        <div class="map-chip" id="map-chip" aria-hidden="true">
-          <span class="map-chip-dot"></span>
-          <span><b id="map-chip-jobs">314</b> jobs · <b id="map-chip-suburbs">48</b> suburbs</span>
-        </div>
-      </div>
-      <p class="visually-hidden">A map of Sydney fills the screen. As the page scrolls, suburb pins land on it one by one — 314 open jobs across 48 suburbs, each pin sized and coloured by how many jobs are open there.</p>
-    </section>
-
     <!-- ============ SCROLL GALLERY ============
          A horizontal rail of screens: drag, swipe, arrow keys or the two
          buttons. The rail is the scroll container itself (no transform
@@ -557,8 +536,13 @@
          for free and it still works with JS off. -->
     <section class="gallery section" id="gallery" aria-labelledby="gallery-heading">
       <div class="container">
-        <p class="kicker" data-reveal>A look inside</p>
         <h2 id="gallery-heading" data-reveal>Three steps.</h2>
+        <!-- Fourth thing the side toggle drives, after the hero headline, the
+             screenshot and the refresh beat. Work is the default side, so the
+             static markup carries its copy for no-JS and first paint. -->
+        <p class="gallery-lede split-words" data-side-copy data-hl="streamlined."
+           data-work="Discover, Apply, Work, streamlined." data-work-hl="streamlined."
+           data-hire="End to end hiring, made simple." data-hire-hl="made simple.">Discover, Apply, Work, <em class="hl">streamlined.</em></p>
       </div>
 
       <div class="gallery-viewport" id="gallery-viewport" tabindex="0" role="group"
@@ -601,7 +585,7 @@
           </li>
 
           <li class="gallery-card" data-side="work" hidden>
-            <div class="gallery-shot">
+            <div class="gallery-shot is-bleed">
               <div class="gallery-phone">
                 <!-- Two shots sharing one screen. Each is drawn at full screen width
                      inside a half-width window, so neither is squashed — the modifier
@@ -625,7 +609,7 @@
           <li class="gallery-card" data-side="work" hidden>
             <div class="gallery-shot">
               <div class="gallery-phone">
-                <div class="device-screen">
+                <div class="device-screen is-sheet">
                   <img src="assets/work-step-2-apply.png" width="1206" height="2622" loading="lazy"
                        alt="Applying for Front of House at The Copper Still in Newtown: the resume and RSA certificate autofilled from Tahlia Brooks' profile, with a short message to the hirer above the Submit application button.">
                 </div>
@@ -661,198 +645,88 @@
       </div>
     </section>
 
+    <!-- ============ FULL-SCREEN MAP ============
+         The app's suburb map, blown up to the whole viewport. The section is
+         tall on purpose: the extra height is the scrub track. Scrolling starts
+         on the bare map and rains the pins onto it, smallest counts first,
+         ending on the CBD's 37. Pins are DOM elements over a genuinely empty
+         basemap (captured from the app in the simulator with a zero-match
+         filter), so each one can land on real map detail — roads, water,
+         labels — and stay welded to it through the zoom. -->
+    <section class="mapscroll" id="map" aria-labelledby="map-heading">
+      <div class="map-sticky">
+        <div class="map-stage" id="map-stage" aria-hidden="true">
+          <img class="map-base" src="assets/map-base.png"
+               width="1206" height="1720" loading="lazy" alt="">
+          <!-- pins injected by script.js -->
+        </div>
+        <div class="map-scrim map-scrim-top" aria-hidden="true"></div>
+        <div class="map-scrim map-scrim-bottom" aria-hidden="true"></div>
+        <!-- The heading block is persistently visible: no entrance reveal and
+             no scrubbed opacity, so the map is labelled the moment the section
+             comes into view and stays labelled all the way through it. -->
+        <div class="map-titles" id="map-titles">
+          <h2 id="map-heading">Sydney's <span class="hl">most complete</span> hospitality app</h2>
+          <p class="map-note">Work that <span class="hl">works for you</span></p>
+        </div>
+        <!-- The app's own "314 jobs · 48 suburbs" pill; counts up as pins land -->
+        <div class="map-chip" id="map-chip" aria-hidden="true">
+          <span class="map-chip-dot"></span>
+          <span><b id="map-chip-jobs">314</b> jobs · <b id="map-chip-suburbs">48</b> suburbs</span>
+        </div>
+      </div>
+      <p class="visually-hidden">A map of Sydney fills the screen. As the page scrolls, suburb pins land on it one by one — 314 open jobs across 48 suburbs, each pin sized and coloured by how many jobs are open there.</p>
+    </section>
+
     <!-- ============ TWO SIDES, ONE APP ============ -->
     <section class="sides section" id="sides" aria-labelledby="sides-heading">
       <div class="container">
         <p class="kicker" data-reveal>Two sides, one app</p>
         <h2 id="sides-heading" data-reveal>The same app, facing both ways.</h2>
-        <p class="section-sub" data-reveal>One account can be a worker, a venue, or both — the whole app flips to match. The switch on the phone up top flips the feed; here's what each side gets.</p>
+        <p class="section-sub" data-reveal>One account can be a worker, a venue, or both — the whole app flips to match. Use the switch up top to see the side you're on.</p>
 
-        <!-- The interactive work/hire toggle lives in the hero now — this
-             section is deliberately static copy so the page doesn't carry two
-             identical controls doing the same thing. -->
-        <div class="sides-columns" data-reveal-children>
+        <!-- One card, not two columns: the app shows a reader one side at a
+             time, so the page does too. The Work/Hire toggle in the bar is the
+             only control — this section listens to it rather than carrying a
+             second one that would do the same job.
+
+             Both panels ship visible. A no-JS visit then reads them stacked,
+             which is the old two-column content in one column; JS hides the
+             inactive one on init, behind the loader, so there is no flash. -->
+        <div class="sides-columns is-single" data-reveal>
           <article class="side-col">
-            <p class="side-tag">For workers</p>
-            <h3>Set your roles. Get the right jobs.</h3>
-            <p>Tell Cloche what you do — bartender, chef, barista, whatever — and the suburb you're in. Your feed ranks nearby jobs by the roles you picked, with a plain-English summary above every ad.</p>
-            <ul class="ticks">
-              <li>One-tap applications with your certs attached</li>
-              <li>A map of every open job around you</li>
-              <li>Post your availability and let venues come to you</li>
-            </ul>
-          </article>
-          <article class="side-col">
-            <p class="side-tag">For venues</p>
-            <h3>Post a shift. Meet the shortlist.</h3>
-            <p>Put up a casual shift or a permanent role in a minute. Applicants arrive with verified credentials, distance and experience already on the card — and your feed shows workers posting their availability nearby.</p>
-            <ul class="ticks">
-              <li>Verified RSA, RCG and Food Safety before you message</li>
-              <li>Distance and experience on every applicant card</li>
-              <li>Message workers directly, no middleman</li>
-            </ul>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============ PINNED PHONE FEATURE SCROLL ============ -->
-    <section class="pinned section" id="features" aria-labelledby="pinned-heading">
-      <div class="container">
-        <p class="kicker" data-reveal>What it does</p>
-        <h2 id="pinned-heading" data-reveal>Built around four ideas.</h2>
-      </div>
-
-      <div class="pinned-layout container">
-        <!-- The phone stays stuck while the copy scrolls; the screenshot
-             crossfades as each beat enters the middle of the viewport -->
-        <div class="pinned-device">
-          <div class="device-glow" aria-hidden="true"></div>
-          <div class="device">
-            <div class="device-screen">
-              <img class="beat-img is-active" data-beat="0" src="assets/01-feed.png" width="1206" height="2622" loading="lazy"
-                   alt="Worker feed ranking a bartender job first, with an AI summary above the raw ad.">
-              <img class="beat-img" data-beat="1" src="assets/02-map.png" width="1206" height="2622" loading="lazy"
-                   alt="Map of Sydney with suburb pins sized and colour-graded by open job count — 314 jobs across 48 suburbs.">
-              <img class="beat-img" data-beat="2" src="assets/05-profile-certs.png" width="1206" height="2622" loading="lazy"
-                   alt="Worker profile listing RSA, RCG and Food Safety Supervisor certifications, each with a green Verified badge.">
-              <img class="beat-img" data-beat="3" src="assets/12-venue-messages.png" width="1206" height="2622" loading="lazy"
-                   alt="Venue messages screen showing a hired bartender for The Copper Still in Surry Hills.">
+            <div class="side-panel" data-side-panel="work">
+              <p class="side-tag">For workers</p>
+              <h3>Set your roles. Get the right jobs.</h3>
+              <p>Tell Cloche what you do — bartender, chef, barista, whatever — and the suburb you're in. Your feed ranks nearby jobs by the roles you picked, with a plain-English summary above every ad.</p>
+              <ul class="ticks">
+                <li>One-tap applications with your certs attached</li>
+                <li>A map of every open job around you</li>
+                <li>Post your availability and let venues come to you</li>
+              </ul>
             </div>
-          </div>
-        </div>
-
-        <div class="pinned-copy">
-          <article class="beat" data-beat="0">
-            <h3>A feed that knows your trade</h3>
-            <p>The ranking is structural: roles you selected always outrank roles you didn't, and nothing — not freshness, not popularity — can push a wrong-role job above a right-role one.</p>
-            <p>All the personalisation happens on your phone. Your behaviour never leaves it.</p>
-          </article>
-          <article class="beat" data-beat="1">
-            <h3>See who's hiring near you</h3>
-            <p>A live map of open jobs, with suburb pins sized and coloured by how many are there. Tap a pin, see the jobs.</p>
-            <p>Right now that's 314 jobs across 48 Sydney suburbs.</p>
-          </article>
-          <article class="beat" data-beat="2">
-            <h3>Credentials, verified once</h3>
-            <p>Upload your RSA, RCG and Food Safety certificates once. Cloche verifies them and tracks expiry.</p>
-            <p>Venues see the green badge before they message you — no more emailing photos of cards.</p>
-          </article>
-          <article class="beat" data-beat="3">
-            <h3>Applicants, already filtered</h3>
-            <p>Venues get a shortlist, not a pile. Every applicant card carries verified credentials, distance and experience up front.</p>
-            <p>When you hire someone, the role and the conversation stay together in one place.</p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============ PULL-TO-REFRESH DELIGHT BEAT ============ -->
-    <section class="cloche-beat" id="delight" aria-labelledby="delight-heading">
-      <div class="cloche-sticky">
-        <div class="container cloche-inner">
-          <div class="cloche-copy">
-            <h2 id="delight-heading" data-reveal>Pull to refresh.<br>The cloche lifts.</h2>
-            <p data-reveal>The app is named after the serving dome. Pull the feed down and it lifts off the plate. That's it. That's the feature.</p>
-          </div>
-          <div class="cloche-device" data-reveal>
-            <div class="device device-small">
-              <div class="device-screen">
-                <!-- Scrubbed against scroll position in JS; the poster is the
-                     reduced-motion and video-failure fallback. -->
-                <video id="cloche-video" muted playsinline preload="none"
-                       poster="assets/15-pull-refresh.png"
-                       aria-label="The feed pulled down, revealing a green cloche lifting off a plate.">
-                  <source src="assets/pull-refresh.mp4" type="video/mp4">
-                </video>
-                <!-- No JS means no scrubbing, so stand in a still. -->
-                <noscript>
-                  <img src="assets/15-pull-refresh.png" width="1206" height="2622"
-                       alt="The feed pulled down, revealing a green cloche lifting off a plate.">
-                </noscript>
-              </div>
+            <div class="side-panel" data-side-panel="hire">
+              <p class="side-tag">For venues</p>
+              <h3>Post a shift. Meet the shortlist.</h3>
+              <p>Put up a casual shift or a permanent role in a minute. Applicants arrive with verified credentials, distance and experience already on the card — and your feed shows workers posting their availability nearby.</p>
+              <ul class="ticks">
+                <li>Verified RSA, RCG and Food Safety before you message</li>
+                <li>Distance and experience on every applicant card</li>
+                <li>Message workers directly, no middleman</li>
+              </ul>
             </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============ FEATURE GRID ============ -->
-    <section class="grid-section section" aria-labelledby="grid-heading">
-      <div class="container">
-        <p class="kicker" data-reveal>The rest of it</p>
-        <h2 id="grid-heading" data-reveal>Small app, sharp edges.</h2>
-
-        <div class="feature-grid" data-reveal-children>
-          <article class="card">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.9L19 9.7l-5.2 1.8L12 16.5l-1.8-5L5 9.7l5.2-1.8L12 3Z"/><path d="M18.5 15.5l.75 2 2 .75-2 .75-.75 2-.75-2-2-.75 2-.75.75-2Z"/></svg>
-            <h3>AI summaries</h3>
-            <p>Every listing gets a one-line plain-English summary above the raw ad. A wall of ALL-CAPS text becomes scannable.</p>
-          </article>
-          <article class="card">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M7 12h13M10 18h10"/></svg>
-            <h3>Ranked feed</h3>
-            <p>Your roles come first, structurally. The server sends candidates; your phone does the ranking, in private.</p>
-          </article>
-          <article class="card">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11Z"/><circle cx="12" cy="10" r="2.6"/></svg>
-            <h3>Suburb map</h3>
-            <p>Pins sized and coloured by open jobs, filterable by role. See demand at a glance before you move.</p>
-          </article>
-          <article class="card">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5l2.1 1.5 2.6-.3 1 2.4 2.4 1-.3 2.6 1.5 2.1-1.5 2.1.3 2.6-2.4 1-1 2.4-2.6-.3-2.1 1.5-2.1-1.5-2.6.3-1-2.4-2.4-1 .3-2.6L2.5 12 4 9.9l-.3-2.6 2.4-1 1-2.4 2.6.3L12 2.5Z"/><path d="m9 12 2 2 4-4.5"/></svg>
-            <h3>Verified certs</h3>
-            <p>RSA, RCG and Food Safety, uploaded once, verified and expiry-tracked. Venues see the badge, not a photo of a card.</p>
-          </article>
-          <article class="card">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8.5 8.5 0 0 1-8.5 8.5c-1.5 0-2.9-.36-4.1-1L3 21l1.5-5.4A8.5 8.5 0 1 1 21 12Z"/></svg>
-            <h3>Direct messaging</h3>
-            <p>Workers and venues talk to each other, not to an agency. Applications, hires and chats stay in one thread.</p>
-          </article>
-          <article class="card">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 8h10M17 8l-3-3m3 3-3 3M17 16H7m0 0 3-3m-3 3 3 3"/></svg>
-            <h3>Worker and venue in one</h3>
-            <p>The same account can hold both sides. Flip it and the feed shows jobs to workers, workers to venues.</p>
           </article>
         </div>
       </div>
     </section>
 
-    <!-- ============ STATS BAND ============ -->
-    <section class="stats" id="numbers" aria-labelledby="stats-heading">
-      <div class="container">
-        <h2 id="stats-heading" class="visually-hidden">Cloche in numbers</h2>
-        <dl class="stats-row" data-reveal-children>
-          <div class="stat"><dd><span class="count" data-count="314">0</span></dd><dt>open jobs</dt></div>
-          <div class="stat"><dd><span class="count" data-count="48">0</span></dd><dt>suburbs</dt></div>
-          <div class="stat"><dd><span class="count" data-count="10">0</span></dd><dt>role categories</dt></div>
-          <div class="stat"><dd><span class="count" data-count="2">0</span></dd><dt>sides, one app</dt></div>
-        </dl>
-        <p class="stats-note" data-reveal>Sydney, at last count. More suburbs every week.</p>
-      </div>
-    </section>
-
-    <!-- ============ CTA ============ -->
-    <section class="cta section" id="get" aria-labelledby="cta-heading">
-      <div class="container">
-        <h2 id="cta-heading" data-reveal>Every shift, covered.</h2>
-        <p class="section-sub" data-reveal>Free for workers. Free for venues to browse. On the app stores soon.</p>
-        <div class="hero-ctas cta-ctas" data-reveal>
-          <a class="btn btn-store magnetic" href="#get">
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.53 4.08ZM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25Z"/></svg>
-            <span><small>Download on the</small>App Store</span>
-          </a>
-          <a class="btn btn-store magnetic" href="#get">
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 3.5v17c0 .35.37.57.67.4l1.2-.68 9.05-8.22L5.87 3.78l-1.2-.68a.46.46 0 0 0-.67.4Zm12.6 6.23L7.4 4.5l7.9 7.17 1.3-1.18 2.8 1.6c.8.45.8 1.37 0 1.82l-2.8 1.6-1.3-1.18-7.9 7.17 9.2-5.23 3.32-1.9c.53-.3.53-.94 0-1.24l-3.32-1.9Z"/></svg>
-            <span><small>Get it on</small>Google Play</span>
-          </a>
-        </div>
-      </div>
-    </section>
   </main>
 
   <!-- ============ FOOTER ============ -->
-  <footer class="footer">
+  <!-- Carries #get now that the CTA section is gone: the nav button and the
+       two hero store buttons all target it, and a dead #get would leave them
+       jumping to the top of the page instead of the end of it. -->
+  <footer class="footer" id="get">
     <div class="container footer-inner">
       <span class="wordmark">Cloche</span>
       <p>© 2026 Cloche. Made for hospitality, in Australia.</p>
