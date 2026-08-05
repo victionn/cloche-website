@@ -689,12 +689,18 @@ html.is-loading .hero-ambient { opacity: 0; }
 }
 
 /* Tile first, phone inside it, bleeding off the bottom edge */
+/* Cool blue-grey behind the phones, drawn as a gradient rather than tiled
+   from a bitmap so it stays clean at any card size and costs no request. The
+   light falls from the top-left, matching the direction the phone's own
+   drop-shadow throws, so the two read as one lighting setup. */
 .gallery-shot {
   position: relative;
   aspect-ratio: 4 / 5;
   border-radius: 22px;
   overflow: hidden;
-  background: var(--cream);
+  background:
+    radial-gradient(120% 90% at 18% 8%, rgba(255, 255, 255, 0.55), transparent 62%),
+    linear-gradient(157deg, #D5D9E5 0%, #DCDFE9 38%, #E3E5EC 72%, #E9EAEF 100%);
   border: 1px solid var(--line);
 }
 
@@ -1671,4 +1677,16 @@ html.is-loading .tabs-rail { opacity: 0; transition: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .gallery-card.is-swapping { animation: none; }
+}
+
+/* Three cards, where the original grid held six. The shared 960px rule below
+   steps to two columns, which would strand the third card alone on a second
+   row — so this set holds three across until there is genuinely no room, then
+   goes straight to one. */
+@media (max-width: 960px) and (min-width: 761px) {
+  .feature-grid-3 { grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .feature-grid-3 .card { padding: 24px 20px; }
+}
+@media (max-width: 760px) {
+  .feature-grid-3 { grid-template-columns: 1fr; }
 }

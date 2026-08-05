@@ -386,9 +386,9 @@
       <a class="wordmark" href="#top" aria-label="Cloche — back to top">Cloche</a>
 
       <nav class="nav-pill" aria-label="Site">
-        <a href="#sides">Two sides</a>
         <a href="#gallery">Three steps</a>
         <a href="#map">The map</a>
+        <a href="#features">Features</a>
       </nav>
 
       <div class="nav-actions">
@@ -678,43 +678,55 @@
       <p class="visually-hidden">A map of Sydney fills the screen. As the page scrolls, suburb pins land on it one by one — 314 open jobs across 48 suburbs, each pin sized and coloured by how many jobs are open there.</p>
     </section>
 
-    <!-- ============ TWO SIDES, ONE APP ============ -->
-    <section class="sides section" id="sides" aria-labelledby="sides-heading">
+    <!-- ============ FEATURE CARDS ============
+         Three things the app does that nothing above this point covers, per
+         side. The slider handles browse → apply → hear back, so these are
+         deliberately the quieter details: the ones a reader still scrolling
+         this far actually wants.
+
+         Both sets ride the same [data-side-panel] swap the toggle already
+         drives, so there is no second control and no extra wiring. .side-panel
+         carries the fade and, more importantly, the display:none for the
+         hidden set — .feature-grid is display:grid, which would otherwise
+         override the hidden attribute and paint both sets at once. -->
+    <section class="grid-section section" id="features" aria-labelledby="grid-heading">
       <div class="container">
-        <p class="kicker" data-reveal>Two sides, one app</p>
-        <h2 id="sides-heading" data-reveal>The same app, facing both ways.</h2>
-        <p class="section-sub" data-reveal>One account can be a worker, a venue, or both — the whole app flips to match. Use the switch up top to see the side you're on.</p>
+        <p class="kicker" data-reveal>The rest of it</p>
+        <h2 id="grid-heading" data-reveal>Small app, sharp edges.</h2>
 
-        <!-- One card, not two columns: the app shows a reader one side at a
-             time, so the page does too. The Work/Hire toggle in the bar is the
-             only control — this section listens to it rather than carrying a
-             second one that would do the same job.
+        <div class="feature-grid feature-grid-3 side-panel" data-side-panel="work" data-reveal-children>
+          <article class="card">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.2" width="18" height="15.6" rx="2.4"/><path d="m3.6 16.4 4.2-4.2 3.4 3.4 3-3 6.2 6.2"/><circle cx="15.6" cy="9" r="1.5"/></svg>
+            <h3>More than a resume</h3>
+            <p>Photos of the work you have actually done, past roles with the venues you did them at, and a one-line headline hirers read next to your name in the applicant list.</p>
+          </article>
+          <article class="card">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5l2.1 1.5 2.6-.3 1 2.4 2.4 1-.3 2.6 1.5 2.1-1.5 2.1.3 2.6-2.4 1-1 2.4-2.6-.3-2.1 1.5-2.1-1.5-2.6.3-1-2.4-2.4-1 .3-2.6L2.5 12 4 9.9l-.3-2.6 2.4-1 1-2.4 2.6.3L12 2.5Z"/><path d="m9 12 2 2 4-4.5"/></svg>
+            <h3>Get verified</h3>
+            <p>Stand out amongst other applicants. Upload your certificates once and we check it. Hirers see a verified tick beside your name in the applicant list.</p>
+          </article>
+          <article class="card">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8.2" stroke-dasharray="2.6 3.2"/><path d="M12 1.4v2.2M12 20.4v2.2M1.4 12h2.2M20.4 12h2.2"/></svg>
+            <h3>Your own radius</h3>
+            <p>Set your suburb, then drag a distance in kilometres. Anything past it drops out of the feed and the map, so you only see work you would actually travel to.</p>
+          </article>
+        </div>
 
-             Both panels ship visible. A no-JS visit then reads them stacked,
-             which is the old two-column content in one column; JS hides the
-             inactive one on init, behind the loader, so there is no flash. -->
-        <div class="sides-columns is-single" data-reveal>
-          <article class="side-col">
-            <div class="side-panel" data-side-panel="work">
-              <p class="side-tag">For workers</p>
-              <h3>Set your roles. Get the right jobs.</h3>
-              <p>Tell Cloche what you do — bartender, chef, barista, whatever — and the suburb you're in. Your feed ranks nearby jobs by the roles you picked, with a plain-English summary above every ad.</p>
-              <ul class="ticks">
-                <li>One-tap applications with your certs attached</li>
-                <li>A map of every open job around you</li>
-                <li>Post your availability and let venues come to you</li>
-              </ul>
-            </div>
-            <div class="side-panel" data-side-panel="hire">
-              <p class="side-tag">For venues</p>
-              <h3>Post a shift. Meet the shortlist.</h3>
-              <p>Put up a casual shift or a permanent role in a minute. Applicants arrive with verified credentials, distance and experience already on the card — and your feed shows workers posting their availability nearby.</p>
-              <ul class="ticks">
-                <li>Verified RSA, RCG and Food Safety before you message</li>
-                <li>Distance and experience on every applicant card</li>
-                <li>Message workers directly, no middleman</li>
-              </ul>
-            </div>
+        <div class="feature-grid feature-grid-3 side-panel" data-side-panel="hire" data-reveal-children>
+          <article class="card">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.4 12.2a8 8 0 0 1-8 8 8 8 0 0 1-3.9-1L3.6 20.6l1.4-4.9a8 8 0 1 1 15.4-3.5Z"/><rect x="8.2" y="8.6" width="7.6" height="5" rx="1.2"/><path d="M10.4 11.1h3.2"/></svg>
+            <h3>Say which shift</h3>
+            <p>Attach the job itself to any message, so a worker you are talking to about three different roles always knows which one you mean. Photos and files go in the same thread.</p>
+          </article>
+          <article class="card">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9.4" cy="8.6" r="3.4"/><path d="M3.4 19.4a6.2 6.2 0 0 1 12 0"/><path d="M16.6 5.6a3.2 3.2 0 0 1 0 6"/><path d="M18.4 19.4a5.6 5.6 0 0 0-2.2-4.5"/></svg>
+            <h3>Browse candidates</h3>
+            <p>Hospitality workers advertise that they are after work, and they arrive in your feed by role and suburb. Find someone who fits and message them directly, without posting a shift at all.</p>
+          </article>
+          <article class="card">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.6" cy="10.6" r="6.6"/><path d="m15.4 15.4 4.6 4.6"/><circle cx="10.6" cy="8.8" r="2"/><path d="M7.2 14.4a3.7 3.7 0 0 1 6.8 0"/></svg>
+            <h3>Search for people</h3>
+            <p>Look up a name or a role and get workers back, not just shifts, ranked the same way your feed is. Recent searches and the profiles you opened stay on your phone.</p>
           </article>
         </div>
       </div>
